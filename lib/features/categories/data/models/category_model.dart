@@ -16,11 +16,11 @@ class CategoryModel {
   bool get isActive => status == 'Active';
 
   factory CategoryModel.fromJson(Map<String, dynamic> json) => CategoryModel(
-        id: json['id'] as String,
-        name: json['name'] as String,
-        status: json['status'] as String,
-        createdAt: DateTime.parse(json['created_at'] as String),
-        updatedAt: DateTime.parse(json['updated_at'] as String),
+        id: json['id'] as String? ?? '',
+        name: json['name'] as String? ?? '',
+        status: json['status'] as String? ?? 'Active',
+        createdAt: json['created_at'] != null ? DateTime.parse(json['created_at'].toString()) : DateTime.now(),
+        updatedAt: json['updated_at'] != null ? DateTime.parse(json['updated_at'].toString()) : DateTime.now(),
       );
 
   Map<String, dynamic> toJson() => {

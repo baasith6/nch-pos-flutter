@@ -122,10 +122,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                           ),
                         ],
                       ),
-                      child: const Icon(
-                        Icons.point_of_sale_rounded,
-                        color: Colors.white,
-                        size: 38,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(22),
+                        child: Image.asset(
+                          'assets/images/logo.png',
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) => const Icon(
+                            Icons.point_of_sale_rounded,
+                            color: Colors.white,
+                            size: 38,
+                          ),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 20),
@@ -139,7 +146,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                     ),
                     const SizedBox(height: 6),
                     const Text(
-                      'Sign in to FlutterPOS',
+                      'Sign in to NCH POS',
                       style: TextStyle(
                         color: AppTheme.textSecondary,
                         fontSize: 14,
@@ -268,7 +275,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                     ),
                     const SizedBox(height: 24),
                     const Text(
-                      'FlutterPOS • Secure POS System',
+                      'NCH POS • Secure POS System',
                       style: TextStyle(
                         color: AppTheme.textHint,
                         fontSize: 12,

@@ -74,7 +74,7 @@ class _SaleTile extends StatelessWidget {
   const _SaleTile({required this.sale, required this.onTap});
 
   Color get _statusColor {
-    switch (sale.status) {
+    switch (sale.saleStatus) {
       case 'Completed':
         return AppTheme.accent;
       case 'Cancelled':
@@ -163,7 +163,7 @@ class _SaleTile extends StatelessWidget {
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
-                    sale.status,
+                    sale.saleStatus,
                     style: TextStyle(color: _statusColor, fontSize: 10),
                   ),
                 ),

@@ -4,8 +4,12 @@ import '../features/auth/presentation/screens/login_screen.dart';
 import '../features/auth/presentation/screens/splash_screen.dart';
 import '../features/dashboard/presentation/screens/admin_dashboard_screen.dart';
 import '../features/dashboard/presentation/screens/staff_dashboard_screen.dart';
+import '../features/purchases/presentation/screens/purchase_order_list_screen.dart';
+import '../features/purchases/presentation/screens/add_edit_purchase_order_screen.dart';
+import '../features/purchases/presentation/screens/receive_grn_screen.dart';
 import '../features/products/presentation/screens/product_list_screen.dart';
 import '../features/products/presentation/screens/add_edit_product_screen.dart';
+import '../features/products/presentation/screens/product_units_screen.dart';
 import '../features/categories/presentation/screens/category_list_screen.dart';
 import '../features/pos/presentation/screens/pos_screen.dart';
 import '../features/pos/presentation/screens/receipt_screen.dart';
@@ -15,6 +19,14 @@ import '../features/staff/presentation/screens/staff_list_screen.dart';
 import '../features/staff/presentation/screens/add_staff_screen.dart';
 import '../features/stock/presentation/screens/stock_management_screen.dart';
 import '../features/reports/presentation/screens/reports_screen.dart';
+import '../features/reports/presentation/screens/stock_valuation_report_screen.dart';
+import '../features/reports/presentation/screens/customer_ledger_report_screen.dart';
+import '../features/reports/presentation/screens/supplier_ledger_report_screen.dart';
+import '../features/suppliers/presentation/screens/supplier_list_screen.dart';
+import '../features/payments/presentation/screens/supplier_payments_screen.dart';
+import '../features/payments/presentation/screens/customer_payments_screen.dart';
+import '../features/quotations/presentation/screens/quotation_list_screen.dart';
+import '../features/quotations/presentation/screens/create_quotation_screen.dart';
 import '../features/settings/presentation/screens/settings_screen.dart';
 import '../features/auth/presentation/screens/profile_screen.dart';
 import '../features/auth/presentation/screens/change_password_screen.dart';
@@ -28,6 +40,10 @@ class AppRoutes {
   static const products = '/products';
   static const addProduct = '/products/add';
   static const editProduct = '/products/edit/:id';
+  static const productUnits = '/products/:id/units';
+  static const purchases = '/purchases';
+  static const addPurchase = '/purchases/add';
+  static const receiveGrn = '/purchases/:id/receive';
   static const categories = '/categories';
   static const pos = '/pos';
   static const receipt = '/receipt/:saleId';
@@ -37,6 +53,14 @@ class AppRoutes {
   static const addStaff = '/staff/add';
   static const stockManagement = '/stock';
   static const reports = '/reports';
+  static const stockValuationReport = '/reports/stock-valuation';
+  static const customerLedgerReport = '/reports/customer-ledgers';
+  static const supplierLedgerReport = '/reports/supplier-ledgers';
+  static const customerPayments = '/payments/customer';
+  static const supplierPayments = '/payments/supplier';
+  static const suppliers = '/suppliers';
+  static const quotations = '/quotations';
+  static const createQuotation = '/quotations/create';
   static const settings = '/settings';
   static const profile = '/profile';
   static const changePassword = '/change-password';
@@ -80,6 +104,28 @@ final routerProvider = Provider<GoRouter>((ref) {
         },
       ),
       GoRoute(
+        path: AppRoutes.productUnits,
+        builder: (context, state) {
+          final id = state.pathParameters['id']!;
+          return ProductUnitsScreen(productId: id);
+        },
+      ),
+      GoRoute(
+        path: AppRoutes.purchases,
+        builder: (_, __) => const PurchaseOrderListScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.addPurchase,
+        builder: (_, __) => const AddEditPurchaseOrderScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.receiveGrn,
+        builder: (context, state) {
+          final id = state.pathParameters['id']!;
+          return ReceiveGrnScreen(purchaseOrderId: id);
+        },
+      ),
+      GoRoute(
         path: AppRoutes.categories,
         builder: (_, __) => const CategoryListScreen(),
       ),
@@ -98,6 +144,38 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.reports,
         builder: (_, __) => const ReportsScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.stockValuationReport,
+        builder: (_, __) => const StockValuationReportScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.customerLedgerReport,
+        builder: (_, __) => const CustomerLedgerReportScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.supplierLedgerReport,
+        builder: (_, __) => const SupplierLedgerReportScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.customerPayments,
+        builder: (_, __) => const CustomerPaymentsScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.supplierPayments,
+        builder: (_, __) => const SupplierPaymentsScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.suppliers,
+        builder: (_, __) => const SupplierListScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.quotations,
+        builder: (_, __) => const QuotationListScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.createQuotation,
+        builder: (_, __) => const CreateQuotationScreen(),
       ),
       GoRoute(
         path: AppRoutes.settings,

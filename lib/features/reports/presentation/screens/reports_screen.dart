@@ -121,6 +121,27 @@ class ReportsScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 10),
           _ReportTile(
+            icon: Icons.inventory_2_outlined,
+            label: 'Stock Valuation',
+            color: const Color(0xFF0EA5E9),
+            onTap: () => context.push('/reports/stock-valuation'),
+          ),
+          const SizedBox(height: 10),
+          _ReportTile(
+            icon: Icons.account_balance_wallet_outlined,
+            label: 'Customer Ledgers',
+            color: const Color(0xFFEAB308),
+            onTap: () => context.push('/reports/customer-ledgers'),
+          ),
+          const SizedBox(height: 10),
+          _ReportTile(
+            icon: Icons.account_balance_outlined,
+            label: 'Supplier Ledgers',
+            color: const Color(0xFF14B8A6),
+            onTap: () => context.push('/reports/supplier-ledgers'),
+          ),
+          const SizedBox(height: 10),
+          _ReportTile(
             icon: Icons.warning_amber_rounded,
             label: 'Low Stock',
             color: AppTheme.warning,

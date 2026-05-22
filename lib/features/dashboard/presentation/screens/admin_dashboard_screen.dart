@@ -159,10 +159,22 @@ class AdminDashboardScreen extends ConsumerWidget {
                         onTap: () => context.push(AppRoutes.staff),
                       ),
                       _QuickAction(
+                        icon: Icons.local_shipping_outlined,
+                        label: 'Suppliers',
+                        color: const Color(0xFF3B82F6),
+                        onTap: () => context.push(AppRoutes.suppliers),
+                      ),
+                      _QuickAction(
                         icon: Icons.receipt_long_outlined,
                         label: 'Sales',
                         color: const Color(0xFF10B981),
                         onTap: () => context.push(AppRoutes.salesHistory),
+                      ),
+                      _QuickAction(
+                        icon: Icons.request_quote_outlined,
+                        label: 'Quotations',
+                        color: const Color(0xFF6366F1),
+                        onTap: () => context.push(AppRoutes.quotations),
                       ),
                       _QuickAction(
                         icon: Icons.bar_chart_rounded,
@@ -175,6 +187,12 @@ class AdminDashboardScreen extends ConsumerWidget {
                         label: 'Stock',
                         color: const Color(0xFFEC4899),
                         onTap: () => context.push(AppRoutes.stockManagement),
+                      ),
+                      _QuickAction(
+                        icon: Icons.shopping_cart_checkout_rounded,
+                        label: 'Purchasing',
+                        color: const Color(0xFF14B8A6),
+                        onTap: () => context.push(AppRoutes.purchases),
                       ),
                       _QuickAction(
                         icon: Icons.settings_outlined,

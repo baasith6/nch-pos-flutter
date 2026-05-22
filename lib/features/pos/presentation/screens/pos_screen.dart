@@ -11,8 +11,10 @@ import '../../../products/data/models/product_model.dart';
 import '../../../products/data/repositories/product_repository.dart';
 import '../../../sales/data/models/sale_model.dart';
 import '../../../sales/data/repositories/sales_repository.dart';
+import '../../../quotations/data/repositories/quotation_repository.dart';
 import '../../../settings/data/repositories/payment_method_repository.dart';
 import '../../../settings/data/repositories/settings_repository.dart';
+import '../widgets/checkout_dialog.dart';
 
 // ─── Cart Provider ────────────────────────────────────────────────────────────
 final cartProvider = StateNotifierProvider<CartNotifier, List<CartItem>>((ref) {
@@ -29,6 +31,8 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
       updated[existing] = CartItem(
         productId: updated[existing].productId,
         productName: updated[existing].productName,
+        productUnitId: updated[existing].productUnitId,
+        unitName: updated[existing].unitName,
         unitPrice: updated[existing].unitPrice,
         quantity: updated[existing].quantity + 1,
         discount: updated[existing].discount,
@@ -40,7 +44,9 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
         CartItem(
           productId: product.id,
           productName: product.name,
-          unitPrice: product.sellingPrice,
+          productUnitId: product.baseUnitId ?? 'unknown',
+          unitName: product.baseUnitName ?? 'Unit',
+          unitPrice: product.sellingPriceBase,
         ),
       ];
     }
@@ -56,6 +62,8 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
         return CartItem(
           productId: e.productId,
           productName: e.productName,
+          productUnitId: e.productUnitId,
+          unitName: e.unitName,
           unitPrice: e.unitPrice,
           quantity: qty,
           discount: e.discount,
@@ -120,7 +128,8 @@ final _productSearchProvider = FutureProvider<List<ProductModel>>((ref) async {
 
 // ─── POS Screen ──────────────────────────────────────────────────────────────
 class PosScreen extends ConsumerStatefulWidget {
-  const PosScreen({super.key});
+  final String? quotationId;
+  const PosScreen({super.key, this.quotationId});
 
   @override
   ConsumerState<PosScreen> createState() => _PosScreenState();
@@ -133,6 +142,45 @@ class _PosScreenState extends ConsumerState<PosScreen> {
   MobileScannerController? _scannerController;
 
   @override
+  void initState() {
+    super.initState();
+    if (widget.quotationId != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _loadQuotation(widget.quotationId!);
+      });
+    }
+  }
+
+  Future<void> _loadQuotation(String id) async {
+    try {
+      final details = await ref.read(quotationRepositoryProvider).getQuotationDetails(id);
+      final items = details['quotation_items'] as List;
+      
+      final cartItems = items.map((item) {
+        return CartItem(
+          productId: item['product_id'],
+          productName: item['products']['name'],
+          productUnitId: item['product_unit_id'],
+          unitName: item['product_units']['name'],
+          unitPrice: (item['unit_price'] as num).toDouble(),
+          quantity: item['quantity'],
+          discount: (item['discount'] as num).toDouble(),
+        );
+      }).toList();
+
+      ref.read(cartProvider.notifier).loadCart(cartItems);
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Loaded Quotation ${details["invoice_no"]}')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to load quotation: \$e', style: const TextStyle(color: AppTheme.danger))),
+      );
+    }
+  }
+
+  @override
   void dispose() {
     _searchCtrl.dispose();
     _discountCtrl.dispose();
@@ -142,7 +190,7 @@ class _PosScreenState extends ConsumerState<PosScreen> {
   }
 
   // ── Checkout ──────────────────────────────────────────────────────────────
-  Future<void> _checkout() async {
+  void _openCheckoutDialog() {
     final cart = ref.read(cartProvider);
     if (cart.isEmpty) {
       _showSnack('Cart is empty', isError: true);
@@ -155,48 +203,25 @@ class _PosScreenState extends ConsumerState<PosScreen> {
     final taxAmount = settings?.taxAmountFor(subtotal) ?? 0;
     final grandTotal = subtotal - billDiscount + taxAmount;
 
-    if (billDiscount >= subtotal) {
-      _showSnack('Discount cannot exceed subtotal', isError: true);
-      return;
-    }
-
-    final payment = ref.read(_selectedPaymentProvider);
-    if (payment == AppConstants.paymentCash) {
-      final tendered = ref.read(_cashTenderedProvider);
-      if (tendered < grandTotal) {
-        _showSnack('Cash tendered is less than grand total', isError: true);
-        return;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => CheckoutDialog(
+        subtotal: subtotal,
+        discount: billDiscount,
+        taxAmount: taxAmount,
+        grandTotal: grandTotal,
+      ),
+    ).then((success) {
+      if (success == true) {
+        ref.read(_searchQueryProvider.notifier).state = '';
+        ref.read(_billDiscountProvider.notifier).state = 0;
+        ref.read(_cashTenderedProvider.notifier).state = 0;
+        _searchCtrl.clear();
+        _discountCtrl.clear();
+        _tenderedCtrl.clear();
       }
-    }
-
-    ref.read(_checkoutLoadingProvider.notifier).state = true;
-    try {
-      final result = await ref.read(salesRepositoryProvider).createSale(
-            items: cart,
-            paymentMethod: payment,
-            billDiscount: billDiscount,
-            taxAmount: taxAmount,
-          );
-
-      ref.read(cartProvider.notifier).clearCart();
-      ref.read(_searchQueryProvider.notifier).state = '';
-      ref.read(_billDiscountProvider.notifier).state = 0;
-      ref.read(_cashTenderedProvider.notifier).state = 0;
-      _searchCtrl.clear();
-      _discountCtrl.clear();
-      _tenderedCtrl.clear();
-
-      if (!mounted) return;
-      context.push(
-        AppRoutes.receipt.replaceAll(':saleId', result['sale_id'] as String),
-        extra: result,
-      );
-    } catch (e) {
-      _showSnack(e.toString().replaceAll('Exception:', '').trim(),
-          isError: true);
-    } finally {
-      if (mounted) ref.read(_checkoutLoadingProvider.notifier).state = false;
-    }
+    });
   }
 
   // ── Hold / Park current cart ──────────────────────────────────────────────
@@ -567,12 +592,12 @@ class _PosScreenState extends ConsumerState<PosScreen> {
                                           color: AppTheme.textPrimary,
                                           fontSize: 14)),
                                   subtitle: Text(
-                                      p.sellingPrice.toCurrency(),
+                                      p.sellingPriceBase.toCurrency(),
                                       style: const TextStyle(
                                           color: AppTheme.accent,
                                           fontSize: 12)),
                                   trailing: Text(
-                                    'Stock: ${p.stockQuantity}',
+                                    'Stock: ${p.baseStockQuantity}',
                                     style: TextStyle(
                                       color: p.isLowStock
                                           ? AppTheme.warning
@@ -650,205 +675,16 @@ class _PosScreenState extends ConsumerState<PosScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Payment method chips
-                  Consumer(
-                    builder: (ctx, ref2, _) {
-                      final methodsAsync = ref2.watch(paymentMethodsProvider);
-                      final methods = methodsAsync.value ??
-                          [
-                            AppConstants.paymentCash,
-                            AppConstants.paymentCard,
-                            AppConstants.paymentTransfer
-                          ];
-                      return SizedBox(
-                        width: double.infinity,
-                        child: Wrap(
-                          spacing: 8,
-                          children: methods
-                              .map((method) => ChoiceChip(
-                                    label: Text(method,
-                                        style:
-                                            const TextStyle(fontSize: 12)),
-                                    selected: payment == method,
-                                    onSelected: (_) {
-                                      ref
-                                          .read(_selectedPaymentProvider
-                                              .notifier)
-                                          .state = method;
-                                      if (method !=
-                                          AppConstants.paymentCash) {
-                                        ref
-                                            .read(
-                                                _cashTenderedProvider.notifier)
-                                            .state = 0;
-                                        _tenderedCtrl.clear();
-                                      }
-                                    },
-                                    selectedColor: AppTheme.primary
-                                        .withValues(alpha: 0.2),
-                                  ))
-                              .toList(),
-                        ),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 10),
-
-                  // Totals
-                  _TotalRow(
-                      label: 'Subtotal', value: subtotal.toCurrency()),
-                  if (billDiscount > 0) ...[
-                    const SizedBox(height: 3),
-                    _TotalRow(
-                        label: 'Discount',
-                        value: '- ${billDiscount.toCurrency()}',
-                        color: AppTheme.warning),
-                  ],
-                  if (taxAmount > 0) ...[
-                    const SizedBox(height: 3),
-                    _TotalRow(
-                      label: settings != null
-                          ? 'Tax (${settings.taxPercentage.toStringAsFixed(1)}%)'
-                          : 'Tax',
-                      value: taxAmount.toCurrency(),
-                      color: AppTheme.textSecondary,
+                  // Checkout button
+                  ElevatedButton.icon(
+                    onPressed: _openCheckoutDialog,
+                    icon: const Icon(Icons.shopping_cart_checkout),
+                    label: const Text('Proceed to Checkout'),
+                    style: ElevatedButton.styleFrom(
+                      minimumSize: const Size(double.infinity, 56),
+                      backgroundColor: AppTheme.accent,
+                      foregroundColor: Colors.white,
                     ),
-                  ],
-                  const Divider(height: 14),
-                  _TotalRow(
-                    label: 'Grand Total',
-                    value: grandTotal.toCurrency(),
-                    isBold: true,
-                    valueColor: AppTheme.accent,
-                  ),
-
-                  // Cash tendered
-                  if (payment == AppConstants.paymentCash) ...[
-                    const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: _tenderedCtrl,
-                            keyboardType:
-                                const TextInputType.numberWithOptions(
-                                    decimal: true),
-                            style: const TextStyle(
-                                color: AppTheme.textPrimary),
-                            decoration: InputDecoration(
-                              labelText: 'Cash Tendered',
-                              labelStyle: const TextStyle(
-                                  color: AppTheme.textSecondary,
-                                  fontSize: 13),
-                              isDense: true,
-                              contentPadding:
-                                  const EdgeInsets.symmetric(
-                                      vertical: 10, horizontal: 12),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(10),
-                                borderSide: const BorderSide(
-                                    color: AppTheme.borderDark),
-                              ),
-                            ),
-                            onChanged: (v) {
-                              ref
-                                  .read(_cashTenderedProvider.notifier)
-                                  .state = double.tryParse(v) ?? 0;
-                            },
-                          ),
-                        ),
-                        if (cashTendered > 0) ...[
-                          const SizedBox(width: 12),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              const Text('Change Due',
-                                  style: TextStyle(
-                                      color: AppTheme.textSecondary,
-                                      fontSize: 11)),
-                              Text(
-                                changeDue >= 0
-                                    ? changeDue.toCurrency()
-                                    : '- ${(-changeDue).toCurrency()}',
-                                style: TextStyle(
-                                  color: changeDue >= 0
-                                      ? AppTheme.accent
-                                      : AppTheme.danger,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ],
-                    ),
-                    if (isCashShort)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 4),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.warning_amber_rounded,
-                                color: AppTheme.danger, size: 14),
-                            const SizedBox(width: 4),
-                            Text(
-                              'Need ${(-changeDue).toCurrency()} more',
-                              style: const TextStyle(
-                                  color: AppTheme.danger, fontSize: 12),
-                            ),
-                          ],
-                        ),
-                      ),
-                  ],
-
-                  const SizedBox(height: 10),
-
-                  // Discount + Checkout buttons
-                  Row(
-                    children: [
-                      OutlinedButton.icon(
-                        onPressed: () => _showDiscountDialog(subtotal),
-                        icon: const Icon(Icons.discount_outlined, size: 16),
-                        label: billDiscount > 0
-                            ? Text('- ${billDiscount.toCurrency()}',
-                                style: const TextStyle(
-                                    color: AppTheme.warning))
-                            : const Text('Discount'),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: billDiscount > 0
-                              ? AppTheme.warning
-                              : AppTheme.textSecondary,
-                          side: BorderSide(
-                            color: billDiscount > 0
-                                ? AppTheme.warning.withValues(alpha: 0.5)
-                                : AppTheme.borderDark,
-                          ),
-                          minimumSize: const Size(0, 48),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed:
-                              (isLoading || isCashShort) ? null : _checkout,
-                          icon: isLoading
-                              ? const SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CircularProgressIndicator(
-                                      strokeWidth: 2, color: Colors.white))
-                              : const Icon(
-                                  Icons.check_circle_outline_rounded),
-                          label:
-                              Text(isLoading ? 'Processing…' : 'Checkout'),
-                          style: ElevatedButton.styleFrom(
-                            minimumSize: const Size(double.infinity, 48),
-                            backgroundColor: AppTheme.accent,
-                            foregroundColor: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ],
                   ),
                 ],
               ),

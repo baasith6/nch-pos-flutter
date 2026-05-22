@@ -83,15 +83,19 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                         ),
                       ],
                     ),
-                    child: const Icon(
-                      Icons.point_of_sale_rounded,
-                      color: Colors.white,
-                      size: 52,
+                    child: Image.asset(
+                      'assets/images/logo.png',
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => const Icon(
+                        Icons.point_of_sale_rounded,
+                        color: Colors.white,
+                        size: 52,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 24),
                   const Text(
-                    'FlutterPOS',
+                    'NCH POS',
                     style: TextStyle(
                       color: AppTheme.textPrimary,
                       fontSize: 32,

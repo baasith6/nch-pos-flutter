@@ -67,14 +67,14 @@ class StockManagementScreen extends ConsumerWidget {
                         const SizedBox(height: 2),
                         Row(
                           children: [
-                            Text('Stock: ${p.stockQuantity}',
+                            Text('Stock: ${p.baseStockQuantity}',
                                 style: TextStyle(
                                   color: p.isLowStock ? AppTheme.warning : AppTheme.textSecondary,
                                   fontSize: 12,
                                   fontWeight: p.isLowStock ? FontWeight.w600 : FontWeight.normal,
                                 )),
                             const SizedBox(width: 8),
-                            Text('Reorder: ${p.reorderLevel}',
+                            Text('Reorder: ${p.reorderLevelBase}',
                                 style: const TextStyle(color: AppTheme.textHint, fontSize: 11)),
                           ],
                         ),
@@ -102,7 +102,7 @@ class StockManagementScreen extends ConsumerWidget {
   }
 
   void _showAdjustDialog(BuildContext context, WidgetRef ref, ProductModel p) {
-    final ctrl = TextEditingController(text: '${p.stockQuantity}');
+    final ctrl = TextEditingController(text: '${p.baseStockQuantity}');
     final reasonCtrl = TextEditingController();
     showDialog(
       context: context,
@@ -111,7 +111,7 @@ class StockManagementScreen extends ConsumerWidget {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('Current: ${p.stockQuantity}', style: const TextStyle(color: AppTheme.textSecondary)),
+            Text('Current: ${p.baseStockQuantity}', style: const TextStyle(color: AppTheme.textSecondary)),
             const SizedBox(height: 12),
             TextField(
               controller: ctrl,
@@ -131,11 +131,11 @@ class StockManagementScreen extends ConsumerWidget {
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
           ElevatedButton(
             onPressed: () async {
-              final newQty = int.tryParse(ctrl.text) ?? p.stockQuantity;
+              final newQty = int.tryParse(ctrl.text) ?? p.baseStockQuantity;
               if (reasonCtrl.text.trim().isEmpty) return;
               await ref.read(stockRepositoryProvider).adjustStock(
                 productId: p.id,
-                oldQuantity: p.stockQuantity,
+                oldQuantity: p.baseStockQuantity,
                 newQuantity: newQty,
                 reason: reasonCtrl.text.trim(),
               );

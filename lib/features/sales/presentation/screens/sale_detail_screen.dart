@@ -62,7 +62,7 @@ class SaleDetailScreen extends ConsumerWidget {
                             ),
                           ),
                         ),
-                        _StatusBadge(status: sale.status),
+                        _StatusBadge(status: sale.saleStatus),
                       ],
                     ),
                     const SizedBox(height: 6),
@@ -174,7 +174,7 @@ class SaleDetailScreen extends ConsumerWidget {
                       color: AppTheme.accent,
                     ),
                     const SizedBox(height: 8),
-                    _TRow(label: 'Payment', value: sale.paymentMethod),
+                    _TRow(label: 'Payment', value: sale.paymentStatus),
                   ],
                 ),
               ),
@@ -194,7 +194,7 @@ class SaleDetailScreen extends ConsumerWidget {
               ),
 
               // ── Admin: Cancel / Refund buttons ───────────────────────
-              if (isAdmin && sale.status == 'Completed') ...[
+              if (isAdmin && sale.saleStatus == 'Completed') ...[
                 const SizedBox(height: 10),
                 Row(
                   children: [
@@ -206,7 +206,7 @@ class SaleDetailScreen extends ConsumerWidget {
                         onConfirm: () async {
                           await ref
                               .read(salesRepositoryProvider)
-                              .updateSaleStatus(sale.id, 'Cancelled');
+                              .cancelSale(sale.id);
                           ref.invalidate(_saleByIdProvider(saleId));
                           if (context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
@@ -229,7 +229,7 @@ class SaleDetailScreen extends ConsumerWidget {
                         onConfirm: () async {
                           await ref
                               .read(salesRepositoryProvider)
-                              .updateSaleStatus(sale.id, 'Refunded');
+                              .cancelSale(sale.id);
                           ref.invalidate(_saleByIdProvider(saleId));
                           if (context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(

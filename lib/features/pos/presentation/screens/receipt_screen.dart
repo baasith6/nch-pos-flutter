@@ -81,7 +81,7 @@ class _ReceiptBody extends StatelessWidget {
                 ? 'Tax (${settings.taxPercentage.toStringAsFixed(1)}%)'
                 : null,
             grandTotal: grandTotal,
-            paymentMethod: paymentMethod,
+            paymentStatus: paymentMethod,
             shopName: settings.shopName,
             footer: settings.receiptFooter,
           ),
@@ -108,7 +108,7 @@ class _ReceiptFromModel extends StatelessWidget {
       'discount': sale.discount,
       'tax_amount': sale.taxAmount,
       'grand_total': sale.grandTotal,
-      'payment_method': sale.paymentMethod,
+      'payment_status': sale.paymentStatus,
       'created_at': sale.createdAt.toIso8601String(),
       'items': sale.items
           .map((e) => {
@@ -135,7 +135,7 @@ class _ReceiptFromModel extends StatelessWidget {
                 ? 'Tax (${settings.taxPercentage.toStringAsFixed(1)}%)'
                 : null,
             grandTotal: sale.grandTotal,
-            paymentMethod: sale.paymentMethod,
+            paymentStatus: sale.paymentStatus,
             shopName: settings.shopName,
             footer: settings.receiptFooter,
           ),
@@ -275,7 +275,7 @@ class _ReceiptCard extends StatelessWidget {
   final double taxAmount;
   final String? taxLabel;
   final double grandTotal;
-  final String paymentMethod;
+  final String paymentStatus;
   final String shopName;
   final String? footer;
 
@@ -288,7 +288,7 @@ class _ReceiptCard extends StatelessWidget {
     required this.taxAmount,
     this.taxLabel,
     required this.grandTotal,
-    required this.paymentMethod,
+    required this.paymentStatus,
     required this.shopName,
     this.footer,
   });
@@ -414,7 +414,7 @@ class _ReceiptCard extends StatelessWidget {
             color: AppTheme.accent,
           ),
           const SizedBox(height: 6),
-          _TotalRow(label: 'Payment', value: paymentMethod),
+          _TotalRow(label: 'Payment', value: paymentStatus),
 
           const SizedBox(height: 16),
           const Divider(),

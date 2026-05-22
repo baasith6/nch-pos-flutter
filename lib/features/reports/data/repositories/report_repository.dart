@@ -16,7 +16,7 @@ class ReportRepository {
         .select('*, profiles(full_name), sale_items(*)')
         .gte('created_at', from.toIso8601String())
         .lte('created_at', to.toIso8601String())
-        .eq('status', 'Completed')
+        .eq('sale_status', 'Completed')
         .order('created_at', ascending: false);
     return List<Map<String, dynamic>>.from(data as List);
   }
@@ -32,7 +32,7 @@ class ReportRepository {
     final Map<String, Map<String, dynamic>> aggregated = {};
     for (final item in (data as List)) {
       final saleMap = item['sales'];
-      if (saleMap == null || saleMap['status'] != 'Completed') continue;
+      if (saleMap == null || saleMap['sale_status'] != 'Completed') continue;
       final id = item['product_id'] as String;
       if (!aggregated.containsKey(id)) {
         aggregated[id] = {
@@ -61,7 +61,7 @@ class ReportRepository {
     final data = await _client
         .from('sales')
         .select('staff_id, grand_total, profiles(full_name)')
-        .eq('status', 'Completed');
+        .eq('sale_status', 'Completed');
 
     final Map<String, Map<String, dynamic>> aggregated = {};
     for (final sale in (data as List)) {
@@ -94,14 +94,14 @@ class ReportRepository {
   }) async {
     final data = await _client
         .from('sale_items')
-        .select('quantity, unit_price, line_total, product_id, products(cost_price), sales(status, created_at)');
+        .select('quantity, unit_price, line_total, product_id, products(cost_price), sales(sale_status, created_at)');
 
     double totalRevenue = 0;
     double totalCost = 0;
 
     for (final item in (data as List)) {
       final saleMap = item['sales'];
-      if (saleMap == null || saleMap['status'] != 'Completed') continue;
+      if (saleMap == null || saleMap['sale_status'] != 'Completed') continue;
       final qty = item['quantity'] as int;
       final revenue = (item['line_total'] as num).toDouble();
       final productMap = item['products'] as Map<String, dynamic>?;
@@ -127,11 +127,11 @@ class ReportRepository {
     final data = await _client
         .from('sales')
         .select('payment_method, grand_total')
-        .eq('status', 'Completed');
+        .eq('sale_status', 'Completed');
 
     final Map<String, Map<String, dynamic>> aggregated = {};
     for (final sale in (data as List)) {
-      final method = sale['payment_method'] as String;
+      final method = sale['payment_method'] as String? ?? 'Cash'; // Fallback for old schema
       if (!aggregated.containsKey(method)) {
         aggregated[method] = {
           'payment_method': method,
@@ -145,6 +145,60 @@ class ReportRepository {
               (sale['grand_total'] as num).toDouble();
     }
     return aggregated.values.toList();
+  }
+
+  // --- Phase 4 Reports ---
+
+  Future<Map<String, dynamic>> getStockValuation() async {
+    final data = await _client.from('products').select('name, sku, base_stock_quantity, cost_price');
+    
+    double totalValue = 0;
+    final List<Map<String, dynamic>> items = [];
+    
+    for (final p in (data as List)) {
+      final qty = p['base_stock_quantity'] as int;
+      final cost = (p['cost_price'] as num?)?.toDouble() ?? 0;
+      final value = qty * cost;
+      
+      totalValue += value;
+      items.add({
+        'name': p['name'],
+        'sku': p['sku'],
+        'qty': qty,
+        'cost': cost,
+        'value': value,
+      });
+    }
+    
+    items.sort((a, b) => (b['value'] as double).compareTo(a['value'] as double));
+    
+    return {
+      'total_value': totalValue,
+      'items': items,
+    };
+  }
+
+  Future<List<Map<String, dynamic>>> getCustomerLedger(String customerId) async {
+    // For V1, we just fetch all sales for this customer and order by date.
+    // We could union with customer_payments for a true running ledger, but 
+    // listing the sales and their balances is sufficient for Phase 4.
+    final data = await _client
+        .from('sales')
+        .select('invoice_no, created_at, grand_total, amount_paid, balance_due, payment_status')
+        .eq('customer_id', customerId)
+        .order('created_at');
+        
+    return List<Map<String, dynamic>>.from(data as List);
+  }
+
+  Future<List<Map<String, dynamic>>> getSupplierLedger(String supplierId) async {
+    final data = await _client
+        .from('purchase_orders')
+        .select('po_number, created_at, grand_total, amount_paid, balance_due, payment_status')
+        .eq('supplier_id', supplierId)
+        .order('created_at');
+        
+    return List<Map<String, dynamic>>.from(data as List);
   }
 }
 

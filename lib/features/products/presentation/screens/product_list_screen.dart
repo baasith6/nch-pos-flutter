@@ -85,10 +85,10 @@ class ProductListScreen extends ConsumerWidget {
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            Text(p.sellingPrice.toCurrency(),
+                            Text(p.sellingPriceBase.toCurrency(),
                                 style: const TextStyle(color: AppTheme.accent, fontSize: 14, fontWeight: FontWeight.w600)),
                             const SizedBox(height: 2),
-                            Text('Stock: ${p.stockQuantity}',
+                            Text('Stock: ${p.baseStockQuantity}',
                                 style: TextStyle(
                                   color: p.isLowStock ? AppTheme.warning : AppTheme.textHint,
                                   fontSize: 11,

@@ -1,7 +1,7 @@
 class AppConstants {
   AppConstants._();
 
-  static const String appName = 'FlutterPOS';
+  static const String appName = 'NCH POS';
   static const String currency = 'LKR';
 
   // Roles
