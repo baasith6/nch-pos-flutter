@@ -12,7 +12,6 @@ class UnitRepository {
     final data = await _client
         .from('units')
         .select('*')
-        .eq('is_active', true)
         .order('name');
     return (data as List)
         .map((e) => UnitModel.fromJson(e as Map<String, dynamic>))

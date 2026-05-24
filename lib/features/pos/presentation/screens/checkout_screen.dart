@@ -14,13 +14,13 @@ import '../../../settings/data/repositories/payment_method_repository.dart';
 import '../../../customers/data/models/customer_model.dart';
 import '../screens/pos_screen.dart';
 
-class CheckoutDialog extends ConsumerStatefulWidget {
+class CheckoutScreen extends ConsumerStatefulWidget {
   final double subtotal;
   final double discount;
   final double taxAmount;
   final double grandTotal;
 
-  const CheckoutDialog({
+  const CheckoutScreen({
     super.key,
     required this.subtotal,
     required this.discount,
@@ -29,10 +29,10 @@ class CheckoutDialog extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<CheckoutDialog> createState() => _CheckoutDialogState();
+  ConsumerState<CheckoutScreen> createState() => _CheckoutScreenState();
 }
 
-class _CheckoutDialogState extends ConsumerState<CheckoutDialog> {
+class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   CustomerModel? _selectedCustomer;
   final List<CheckoutPayment> _payments = [];
   bool _isLoading = false;
@@ -113,7 +113,7 @@ class _CheckoutDialogState extends ConsumerState<CheckoutDialog> {
       ref.read(cartProvider.notifier).clearCart();
 
       if (mounted) {
-        Navigator.pop(context, true); // Success
+        context.pop(true); // Success
         context.push(AppRoutes.receipt.replaceAll(':saleId', saleId), extra: {'sale_id': saleId});
       }
     } catch (e) {
@@ -134,18 +134,20 @@ class _CheckoutDialogState extends ConsumerState<CheckoutDialog> {
       AppConstants.paymentTransfer
     ];
 
-    return Dialog(
-      backgroundColor: AppTheme.cardDark,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: Container(
-        width: 600,
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Checkout', style: TextStyle(color: AppTheme.textPrimary, fontSize: 24, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 20),
+    return Scaffold(
+      backgroundColor: AppTheme.background,
+      appBar: AppBar(
+        title: const Text('Checkout'),
+        backgroundColor: AppTheme.surfaceDark,
+      ),
+      body: Center(
+        child: Container(
+          width: 600,
+          padding: const EdgeInsets.all(24),
+          child: ListView(
+            shrinkWrap: true,
+            children: [
+              const SizedBox(height: 20),
 
             // Customer Selection (Mocked for simplicity)
             Row(
@@ -253,7 +255,7 @@ class _CheckoutDialogState extends ConsumerState<CheckoutDialog> {
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 TextButton(
-                  onPressed: () => Navigator.pop(context),
+                  onPressed: () => context.pop(),
                   child: const Text('Cancel', style: TextStyle(color: AppTheme.textSecondary)),
                 ),
                 const SizedBox(width: 16),
@@ -270,6 +272,7 @@ class _CheckoutDialogState extends ConsumerState<CheckoutDialog> {
           ],
         ),
       ),
+      )
     );
   }
 }

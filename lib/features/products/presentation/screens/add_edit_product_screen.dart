@@ -107,7 +107,7 @@ class _AddEditProductState extends ConsumerState<AddEditProductScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Image upload failed: \$e'), backgroundColor: AppTheme.danger),
+          SnackBar(content: Text('Image upload failed: $e'), backgroundColor: AppTheme.danger),
         );
       }
     } finally {
@@ -162,9 +162,11 @@ class _AddEditProductState extends ConsumerState<AddEditProductScreen> {
       );
       context.pop();
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: \$e'), backgroundColor: AppTheme.danger),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: AppTheme.danger),
+        );
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }

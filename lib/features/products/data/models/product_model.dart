@@ -80,6 +80,7 @@ class ProductModel {
       );
 
   Map<String, dynamic> toInsertJson() => {
+        'id': id,
         'sku': sku,
         'category_id': categoryId,
         'brand_id': brandId,
@@ -87,9 +88,11 @@ class ProductModel {
         'name': name,
         'barcode': barcode,
         'selling_price_base': sellingPriceBase,
-        'cost_price': costPrice,
+        'selling_price': sellingPriceBase, // Legacy column
+        'cost_price': costPrice ?? 0,
         'base_stock_quantity': baseStockQuantity,
         'reorder_level_base': reorderLevelBase,
+        'reorder_level': reorderLevelBase, // Legacy column
         'attributes': attributes,
         'image_url': imageUrl,
         'status': status,

@@ -1,5 +1,7 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'main_layout.dart';
 import '../features/auth/presentation/screens/login_screen.dart';
 import '../features/auth/presentation/screens/splash_screen.dart';
 import '../features/dashboard/presentation/screens/admin_dashboard_screen.dart';
@@ -12,6 +14,7 @@ import '../features/products/presentation/screens/add_edit_product_screen.dart';
 import '../features/products/presentation/screens/product_units_screen.dart';
 import '../features/categories/presentation/screens/category_list_screen.dart';
 import '../features/pos/presentation/screens/pos_screen.dart';
+import '../features/pos/presentation/screens/checkout_screen.dart';
 import '../features/pos/presentation/screens/receipt_screen.dart';
 import '../features/sales/presentation/screens/sales_history_screen.dart';
 import '../features/sales/presentation/screens/sale_detail_screen.dart';
@@ -46,6 +49,7 @@ class AppRoutes {
   static const receiveGrn = '/purchases/:id/receive';
   static const categories = '/categories';
   static const pos = '/pos';
+  static const checkout = '/pos/checkout';
   static const receipt = '/receipt/:saleId';
   static const salesHistory = '/sales';
   static const saleDetail = '/sales/:id';
@@ -83,15 +87,49 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, __) => const LoginScreen(),
       ),
 
-      // ─── Admin Routes ───────────────────────────────────────────────────
+      // ─── Main Layout (Bottom Nav / Side Rail) ──────────────────────────
+      ShellRoute(
+        builder: (context, state, child) => MainLayout(child: child),
+        routes: [
+          GoRoute(
+            path: AppRoutes.adminDashboard,
+            builder: (_, __) => const AdminDashboardScreen(),
+          ),
+          GoRoute(
+            path: AppRoutes.staffDashboard,
+            builder: (_, __) => const StaffDashboardScreen(),
+          ),
+          GoRoute(
+            path: AppRoutes.products,
+            builder: (_, __) => const ProductListScreen(),
+          ),
+          GoRoute(
+            path: AppRoutes.settings,
+            builder: (_, __) => const SettingsScreen(),
+          ),
+        ],
+      ),
+
+      // ─── Outside ShellRoute (Full Screen) ──────────────────────────────
+      // POS Screen is intentionally outside the ShellRoute so the cart
+      // and checkout flow have full vertical screen space.
       GoRoute(
-        path: AppRoutes.adminDashboard,
-        builder: (_, __) => const AdminDashboardScreen(),
+        path: AppRoutes.pos,
+        builder: (_, __) => const PosScreen(),
       ),
       GoRoute(
-        path: AppRoutes.products,
-        builder: (_, __) => const ProductListScreen(),
+        path: AppRoutes.checkout,
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>? ?? {};
+          return CheckoutScreen(
+            subtotal: extra['subtotal'] ?? 0.0,
+            discount: extra['discount'] ?? 0.0,
+            taxAmount: extra['taxAmount'] ?? 0.0,
+            grandTotal: extra['grandTotal'] ?? 0.0,
+          );
+        },
       ),
+
       GoRoute(
         path: AppRoutes.addProduct,
         builder: (_, __) => const AddEditProductScreen(),
@@ -176,20 +214,6 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.createQuotation,
         builder: (_, __) => const CreateQuotationScreen(),
-      ),
-      GoRoute(
-        path: AppRoutes.settings,
-        builder: (_, __) => const SettingsScreen(),
-      ),
-
-      // ─── Shared Routes ──────────────────────────────────────────────────
-      GoRoute(
-        path: AppRoutes.staffDashboard,
-        builder: (_, __) => const StaffDashboardScreen(),
-      ),
-      GoRoute(
-        path: AppRoutes.pos,
-        builder: (_, __) => const PosScreen(),
       ),
       GoRoute(
         path: AppRoutes.receipt,

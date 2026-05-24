@@ -138,7 +138,7 @@ class StaffDashboardScreen extends ConsumerWidget {
                         label: 'New Sale',
                         subtitle: 'Start POS',
                         color: AppTheme.primary,
-                        onTap: () => context.push(AppRoutes.pos),
+                        onTap: () => context.go(AppRoutes.pos),
                       ),
                       _StaffAction(
                         icon: Icons.receipt_long_outlined,

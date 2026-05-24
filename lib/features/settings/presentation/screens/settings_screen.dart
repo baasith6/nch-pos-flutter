@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../app/theme.dart';
+import '../../../../app/router.dart';
+import '../../../../core/services/auth_session_service.dart';
 import '../../data/repositories/settings_repository.dart';
 import '../../data/repositories/payment_method_repository.dart';
 
@@ -122,7 +124,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         title: const Text('Shop Settings'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded),
-          onPressed: () => context.pop(),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              final profile = ref.read(currentProfileProvider).value;
+              if (profile?.isAdmin == true) {
+                context.go(AppRoutes.adminDashboard);
+              } else {
+                context.go(AppRoutes.staffDashboard);
+              }
+            }
+          },
         ),
       ),
       body: settingsAsync.when(

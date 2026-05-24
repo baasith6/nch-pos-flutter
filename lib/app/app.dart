@@ -13,7 +13,7 @@ class App extends ConsumerWidget {
     return MaterialApp.router(
       title: 'NCH POS',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.darkTheme,
+      theme: AppTheme.lightTheme,
       routerConfig: router,
     );
   }

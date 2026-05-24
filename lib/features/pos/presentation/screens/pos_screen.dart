@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
@@ -14,7 +15,6 @@ import '../../../sales/data/repositories/sales_repository.dart';
 import '../../../quotations/data/repositories/quotation_repository.dart';
 import '../../../settings/data/repositories/payment_method_repository.dart';
 import '../../../settings/data/repositories/settings_repository.dart';
-import '../widgets/checkout_dialog.dart';
 
 // ─── Cart Provider ────────────────────────────────────────────────────────────
 final cartProvider = StateNotifierProvider<CartNotifier, List<CartItem>>((ref) {
@@ -203,15 +203,14 @@ class _PosScreenState extends ConsumerState<PosScreen> {
     final taxAmount = settings?.taxAmountFor(subtotal) ?? 0;
     final grandTotal = subtotal - billDiscount + taxAmount;
 
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => CheckoutDialog(
-        subtotal: subtotal,
-        discount: billDiscount,
-        taxAmount: taxAmount,
-        grandTotal: grandTotal,
-      ),
+    context.push(
+      AppRoutes.checkout,
+      extra: {
+        'subtotal': subtotal,
+        'discount': billDiscount,
+        'taxAmount': taxAmount,
+        'grandTotal': grandTotal,
+      },
     ).then((success) {
       if (success == true) {
         ref.read(_searchQueryProvider.notifier).state = '';
@@ -242,7 +241,7 @@ class _PosScreenState extends ConsumerState<PosScreen> {
     final parked = ref.read(parkedCartsProvider);
     showModalBottomSheet(
       context: context,
-      backgroundColor: AppTheme.cardDark,
+      backgroundColor: AppTheme.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -343,7 +342,7 @@ class _PosScreenState extends ConsumerState<PosScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: AppTheme.cardDark,
+        backgroundColor: AppTheme.surface,
         title: const Text('Bill Discount',
             style: TextStyle(color: AppTheme.textPrimary)),
         content: Column(
@@ -437,7 +436,18 @@ class _PosScreenState extends ConsumerState<PosScreen> {
         title: const Text('Point of Sale'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded),
-          onPressed: () => context.pop(),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              final profile = ref.read(currentProfileProvider).value;
+              if (profile?.isAdmin == true) {
+                context.go(AppRoutes.adminDashboard);
+              } else {
+                context.go(AppRoutes.staffDashboard);
+              }
+            }
+          },
         ),
         actions: [
           // Parked carts badge
@@ -498,197 +508,247 @@ class _PosScreenState extends ConsumerState<PosScreen> {
         children: [
           // ─── Search + Scanner Bar ────────────────────────────────────
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
             child: Row(
               children: [
                 Expanded(
                   child: TextField(
                     controller: _searchCtrl,
-                    style: const TextStyle(color: AppTheme.textPrimary),
+                    style: const TextStyle(color: AppTheme.slateText),
                     decoration: InputDecoration(
                       hintText: 'Search product or type barcode…',
-                      prefixIcon: const Icon(Icons.search,
-                          color: AppTheme.textHint, size: 20),
+                      prefixIcon: const Icon(Icons.search, color: AppTheme.mutedText, size: 20),
                       suffixIcon: _searchCtrl.text.isNotEmpty
                           ? IconButton(
-                              icon: const Icon(Icons.clear,
-                                  color: AppTheme.textHint, size: 18),
+                              icon: const Icon(Icons.clear, color: AppTheme.mutedText, size: 18),
                               onPressed: () {
                                 _searchCtrl.clear();
-                                ref
-                                    .read(_searchQueryProvider.notifier)
-                                    .state = '';
+                                ref.read(_searchQueryProvider.notifier).state = '';
                               },
                             )
                           : null,
                     ),
-                    onChanged: (v) =>
-                        ref.read(_searchQueryProvider.notifier).state = v,
+                    onChanged: (v) => ref.read(_searchQueryProvider.notifier).state = v,
                   ),
                 ),
                 const SizedBox(width: 8),
-                // Camera barcode scanner button
                 GestureDetector(
                   onTap: _openBarcodeScanner,
                   child: Container(
-                    width: 46,
-                    height: 46,
+                    width: 48,
+                    height: 48,
                     decoration: BoxDecoration(
-                      color: AppTheme.primary.withValues(alpha: 0.15),
+                      color: AppTheme.primary.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                          color: AppTheme.primary.withValues(alpha: 0.3)),
+                      border: Border.all(color: AppTheme.primary.withValues(alpha: 0.2)),
                     ),
-                    child: const Icon(Icons.qr_code_scanner_rounded,
-                        color: AppTheme.primary, size: 22),
+                    child: const Icon(Icons.qr_code_scanner_rounded, color: AppTheme.primary, size: 22),
                   ),
                 ),
               ],
             ),
           ),
 
-          // ─── Search Results ──────────────────────────────────────────
-          searchResults.when(
-            loading: () => const Padding(
-              padding: EdgeInsets.all(8),
-              child: LinearProgressIndicator(),
-            ),
-            error: (e, _) => Padding(
-              padding: const EdgeInsets.all(8),
-              child: Text('Error: $e',
-                  style: const TextStyle(color: AppTheme.danger)),
-            ),
-            data: (products) =>
-                products.isEmpty && _searchCtrl.text.isNotEmpty
-                    ? const Padding(
-                        padding: EdgeInsets.all(12),
-                        child: Text('No products found',
-                            style: TextStyle(
-                                color: AppTheme.textSecondary)),
-                      )
-                    : products.isNotEmpty
-                        ? Container(
-                            constraints:
-                                const BoxConstraints(maxHeight: 220),
-                            margin: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: AppTheme.elevatedDark,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                  color: AppTheme.borderDark),
-                            ),
-                            child: ListView.separated(
-                              shrinkWrap: true,
-                              itemCount: products.length,
-                              separatorBuilder: (_, __) =>
-                                  const Divider(height: 1),
-                              itemBuilder: (context, i) {
-                                final p = products[i];
-                                return ListTile(
-                                  dense: true,
-                                  title: Text(p.name,
-                                      style: const TextStyle(
-                                          color: AppTheme.textPrimary,
-                                          fontSize: 14)),
-                                  subtitle: Text(
-                                      p.sellingPriceBase.toCurrency(),
-                                      style: const TextStyle(
-                                          color: AppTheme.accent,
-                                          fontSize: 12)),
-                                  trailing: Text(
-                                    'Stock: ${p.baseStockQuantity}',
-                                    style: TextStyle(
-                                      color: p.isLowStock
-                                          ? AppTheme.warning
-                                          : AppTheme.textHint,
-                                      fontSize: 11,
-                                    ),
+          // ─── Products List / Grid ────────────────────────────────────
+          Expanded(
+            child: searchResults.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (e, _) => Center(child: Text('Error: $e', style: const TextStyle(color: AppTheme.danger))),
+              data: (products) {
+                if (products.isEmpty && _searchCtrl.text.isNotEmpty) {
+                  return const Center(child: Text('No products found', style: TextStyle(color: AppTheme.mutedText)));
+                }
+                if (products.isEmpty) {
+                   return const Center(child: Text('Search to add products', style: TextStyle(color: AppTheme.mutedText)));
+                }
+                return ListView.separated(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  itemCount: products.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  itemBuilder: (context, i) {
+                    final p = products[i];
+                    return GestureDetector(
+                      onTap: () {
+                        HapticFeedback.lightImpact();
+                        ref.read(cartProvider.notifier).addItem(p);
+                        _searchCtrl.clear();
+                        ref.read(_searchQueryProvider.notifier).state = '';
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppTheme.surface,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AppTheme.border),
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(p.name, style: const TextStyle(color: AppTheme.slateText, fontSize: 14, fontWeight: FontWeight.w600)),
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    children: [
+                                      if (p.sku != null && p.sku!.isNotEmpty) ...[
+                                        Text('SKU: ${p.sku}', style: const TextStyle(color: AppTheme.mutedText, fontSize: 11, fontFamily: 'monospace')),
+                                        const SizedBox(width: 8),
+                                      ],
+                                      Text(p.categoryName ?? '', style: const TextStyle(color: AppTheme.mutedText, fontSize: 11)),
+                                    ],
                                   ),
-                                  onTap: () {
-                                    ref
-                                        .read(cartProvider.notifier)
-                                        .addItem(p);
-                                    _searchCtrl.clear();
-                                    ref
-                                        .read(_searchQueryProvider
-                                            .notifier)
-                                        .state = '';
-                                  },
-                                );
-                              },
+                                ],
+                              ),
                             ),
-                          )
-                        : const SizedBox(),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text(p.sellingPriceBase.toCurrency(), style: const TextStyle(color: AppTheme.slateText, fontSize: 15, fontWeight: FontWeight.w700)),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Stock: ${p.baseStockQuantity} ${p.baseUnitName ?? ''}',
+                                  style: TextStyle(color: p.isLowStock ? AppTheme.danger : AppTheme.success, fontSize: 11, fontWeight: FontWeight.w600),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(width: 12),
+                            Container(
+                              width: 32,
+                              height: 32,
+                              decoration: BoxDecoration(
+                                color: AppTheme.primary,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Icon(Icons.add, color: Colors.white, size: 18),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
           ),
+        ],
+      ),
+      bottomNavigationBar: cart.isEmpty ? const SizedBox.shrink() : SafeArea(
+        child: InkWell(
+          onTap: () {
+            showModalBottomSheet(
+              context: context,
+              isScrollControlled: true,
+              backgroundColor: AppTheme.background,
+              shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+              builder: (context) => _CartBottomSheet(
+                onCheckout: () {
+                  Navigator.pop(context); // Close sheet
+                  _openCheckoutDialog(); // Open payment dialog
+                },
+              ),
+            );
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: AppTheme.primary,
+              boxShadow: [
+                BoxShadow(color: AppTheme.primary.withValues(alpha: 0.3), blurRadius: 10, offset: const Offset(0, -2))
+              ],
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(8)),
+                  child: Text('${cart.length} items', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                ),
+                const SizedBox(width: 12),
+                Text(grandTotal.toCurrency(), style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700)),
+                const Spacer(),
+                const Text('View Cart', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
+                const SizedBox(width: 4),
+                const Icon(Icons.keyboard_arrow_up_rounded, color: Colors.white),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
 
-          // ─── Cart List ───────────────────────────────────────────────
+class _CartBottomSheet extends ConsumerWidget {
+  final VoidCallback onCheckout;
+  const _CartBottomSheet({required this.onCheckout});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final cart = ref.watch(cartProvider);
+    final subtotal = ref.read(cartProvider.notifier).subtotal;
+    
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.75,
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      child: Column(
+        children: [
+          Container(width: 40, height: 4, decoration: BoxDecoration(color: AppTheme.border, borderRadius: BorderRadius.circular(2))),
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Current Cart', style: TextStyle(color: AppTheme.slateText, fontSize: 20, fontWeight: FontWeight.w700)),
+              IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
+            ],
+          ),
+          const Divider(),
           Expanded(
             child: cart.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.shopping_cart_outlined,
-                            size: 60,
-                            color: AppTheme.textHint.withValues(alpha: 0.4)),
-                        const SizedBox(height: 12),
-                        const Text('Cart is empty',
-                            style: TextStyle(color: AppTheme.textHint)),
-                        const Text('Search or scan a product to add',
-                            style: TextStyle(
-                                color: AppTheme.textHint, fontSize: 12)),
-                      ],
-                    ),
-                  )
+                ? const Center(child: Text('Cart is empty', style: TextStyle(color: AppTheme.mutedText)))
                 : ListView.separated(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.symmetric(vertical: 8),
                     itemCount: cart.length,
-                    separatorBuilder: (_, __) =>
-                        const SizedBox(height: 8),
+                    separatorBuilder: (_, __) => const SizedBox(height: 8),
                     itemBuilder: (context, i) => _CartItemTile(
                       item: cart[i],
-                      onIncrease: () => ref
-                          .read(cartProvider.notifier)
-                          .updateQuantity(
-                              cart[i].productId, cart[i].quantity + 1),
-                      onDecrease: () => ref
-                          .read(cartProvider.notifier)
-                          .updateQuantity(
-                              cart[i].productId, cart[i].quantity - 1),
-                      onRemove: () => ref
-                          .read(cartProvider.notifier)
-                          .removeItem(cart[i].productId),
+                      onIncrease: () {
+                        HapticFeedback.lightImpact();
+                        ref.read(cartProvider.notifier).updateQuantity(cart[i].productId, cart[i].quantity + 1);
+                      },
+                      onDecrease: () {
+                        HapticFeedback.lightImpact();
+                        ref.read(cartProvider.notifier).updateQuantity(cart[i].productId, cart[i].quantity - 1);
+                      },
+                      onRemove: () => ref.read(cartProvider.notifier).removeItem(cart[i].productId),
                     ),
                   ),
           ),
-
-          // ─── Checkout Panel ──────────────────────────────────────────
-          if (cart.isNotEmpty)
-            Container(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-              decoration: BoxDecoration(
-                color: AppTheme.surfaceDark,
-                border:
-                    const Border(top: BorderSide(color: AppTheme.borderDark)),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Checkout button
-                  ElevatedButton.icon(
-                    onPressed: _openCheckoutDialog,
-                    icon: const Icon(Icons.shopping_cart_checkout),
-                    label: const Text('Proceed to Checkout'),
-                    style: ElevatedButton.styleFrom(
-                      minimumSize: const Size(double.infinity, 56),
-                      backgroundColor: AppTheme.accent,
-                      foregroundColor: Colors.white,
-                    ),
-                  ),
-                ],
-              ),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: const BoxDecoration(
+              color: AppTheme.surface,
+              border: Border(top: BorderSide(color: AppTheme.border)),
             ),
+            child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Subtotal', style: TextStyle(color: AppTheme.mutedText, fontSize: 14)),
+                    Text(subtotal.toCurrency(), style: const TextStyle(color: AppTheme.slateText, fontSize: 16, fontWeight: FontWeight.w600)),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton.icon(
+                  onPressed: cart.isEmpty ? null : onCheckout,
+                  icon: const Icon(Icons.shopping_cart_checkout),
+                  label: const Text('Proceed to Checkout'),
+                ),
+                const SizedBox(height: 16),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -735,9 +795,9 @@ class _ParkedCartsSheet extends StatelessWidget {
                 margin: const EdgeInsets.only(bottom: 10),
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: AppTheme.elevatedDark,
+                  color: AppTheme.surface,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppTheme.borderDark),
+                  border: Border.all(color: AppTheme.border),
                 ),
                 child: Row(
                   children: [
@@ -836,9 +896,9 @@ class _CartItemTile extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppTheme.cardDark,
+        color: AppTheme.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.borderDark, width: 0.5),
+        border: Border.all(color: AppTheme.border, width: 1),
       ),
       child: Row(
         children: [
