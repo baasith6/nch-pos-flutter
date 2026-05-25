@@ -1,14 +1,13 @@
 
-import 'package:supabase/supabase.dart';
-import 'lib/app/env.dart';
-
-void main() async {
-  final client = SupabaseClient(Env.supabaseUrl, Env.supabaseAnonKey);
+void main() {
+  Map<String, double> extra = {'a': 1.0};
+  Object stateExtra = extra;
+  
   try {
-    final response = await client.rpc('get_table_schema', params: {'table_name': 'products'});
-    print(response);
+    final extraMap = stateExtra as Map<String, dynamic>?;
+    print('SUCCESS: \');
   } catch (e) {
-    print('Failed to call rpc, error: \');
+    print('FAILED CAST: \');
   }
 }
 

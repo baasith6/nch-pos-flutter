@@ -120,12 +120,24 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.checkout,
         builder: (context, state) {
-          final extra = state.extra as Map<String, dynamic>? ?? {};
+          final extra = state.extra;
+          double sub = 0;
+          double disc = 0;
+          double tax = 0;
+          double grand = 0;
+
+          if (extra is Map) {
+            sub = (extra['subtotal'] as num?)?.toDouble() ?? 0.0;
+            disc = (extra['discount'] as num?)?.toDouble() ?? 0.0;
+            tax = (extra['taxAmount'] as num?)?.toDouble() ?? 0.0;
+            grand = (extra['grandTotal'] as num?)?.toDouble() ?? 0.0;
+          }
+
           return CheckoutScreen(
-            subtotal: extra['subtotal'] ?? 0.0,
-            discount: extra['discount'] ?? 0.0,
-            taxAmount: extra['taxAmount'] ?? 0.0,
-            grandTotal: extra['grandTotal'] ?? 0.0,
+            subtotal: sub,
+            discount: disc,
+            taxAmount: tax,
+            grandTotal: grand,
           );
         },
       ),
