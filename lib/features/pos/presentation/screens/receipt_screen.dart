@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:printing/printing.dart';
+import 'package:intl/intl.dart';
 import '../../../../app/theme.dart';
 import '../../../../core/extensions/extensions.dart';
 import '../../../../core/services/receipt_pdf_service.dart';
@@ -30,8 +31,10 @@ class ReceiptScreen extends ConsumerWidget {
     final data = receiptData;
 
     return Scaffold(
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
         title: const Text('Receipt'),
+        backgroundColor: AppTheme.surfaceDark,
         leading: IconButton(
           icon: const Icon(Icons.close_rounded),
           onPressed: () => context.pop(),
@@ -57,37 +60,19 @@ class _ReceiptBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final items = data['items'] as List? ?? [];
-    final invoiceNo = data['invoice_no'] as String? ?? '';
-    final grandTotal = (data['grand_total'] as num?)?.toDouble() ?? 0;
-    final subtotal = (data['subtotal'] as num?)?.toDouble() ?? 0;
-    final discount = (data['discount'] as num?)?.toDouble() ?? 0;
-    final taxAmount = (data['tax_amount'] as num?)?.toDouble() ?? 0;
-    final paymentMethod = data['payment_method'] as String? ?? '';
-    final createdAt = data['created_at'] as String? ?? '';
-
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
-      child: Column(
-        children: [
-          _ReceiptCard(
-            invoiceNo: invoiceNo,
-            createdAt: createdAt,
-            items: items,
-            subtotal: subtotal,
-            discount: discount,
-            taxAmount: taxAmount,
-            taxLabel: settings.taxEnabled && settings.taxPercentage > 0
-                ? 'Tax (${settings.taxPercentage.toStringAsFixed(1)}%)'
-                : null,
-            grandTotal: grandTotal,
-            paymentStatus: paymentMethod,
-            shopName: settings.shopName,
-            footer: settings.receiptFooter,
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 400),
+          child: Column(
+            children: [
+              _ReceiptCard(data: data, settings: settings),
+              const SizedBox(height: 16),
+              _ActionButtons(data: data, settings: settings),
+            ],
           ),
-          const SizedBox(height: 16),
-          _ActionButtons(data: data, settings: settings),
-        ],
+        ),
       ),
     );
   }
@@ -104,12 +89,21 @@ class _ReceiptFromModel extends StatelessWidget {
     final data = {
       'invoice_no': sale.invoiceNo,
       'staff_name': sale.staffName ?? '',
+      'customer_name': sale.customerName,
       'subtotal': sale.subtotal,
       'discount': sale.discount,
       'tax_amount': sale.taxAmount,
       'grand_total': sale.grandTotal,
+      'amount_paid': sale.amountPaid,
+      'balance_due': sale.balanceDue,
       'payment_status': sale.paymentStatus,
       'created_at': sale.createdAt.toIso8601String(),
+      'payments': sale.payments
+          .map((p) => {
+                'method': p.paymentMethodName ?? 'Unknown',
+                'amount': p.amount,
+              })
+          .toList(),
       'items': sale.items
           .map((e) => {
                 'product_name': e.productName,
@@ -122,26 +116,17 @@ class _ReceiptFromModel extends StatelessWidget {
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
-      child: Column(
-        children: [
-          _ReceiptCard(
-            invoiceNo: sale.invoiceNo,
-            createdAt: sale.createdAt.toIso8601String(),
-            items: data['items'] as List,
-            subtotal: sale.subtotal,
-            discount: sale.discount,
-            taxAmount: sale.taxAmount,
-            taxLabel: settings.taxEnabled && settings.taxPercentage > 0
-                ? 'Tax (${settings.taxPercentage.toStringAsFixed(1)}%)'
-                : null,
-            grandTotal: sale.grandTotal,
-            paymentStatus: sale.paymentStatus,
-            shopName: settings.shopName,
-            footer: settings.receiptFooter,
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 400),
+          child: Column(
+            children: [
+              _ReceiptCard(data: data, settings: settings),
+              const SizedBox(height: 16),
+              _ActionButtons(data: data, settings: settings),
+            ],
           ),
-          const SizedBox(height: 16),
-          _ActionButtons(data: data, settings: settings),
-        ],
+        ),
       ),
     );
   }
@@ -163,7 +148,7 @@ class _ActionButtonsState extends State<_ActionButtons> {
   Future<void> _print() async {
     setState(() => _printing = true);
     try {
-      final doc = ReceiptPdfService.generate(
+      final doc = await ReceiptPdfService.generate(
         data: widget.data,
         settings: widget.settings,
       );
@@ -188,7 +173,7 @@ class _ActionButtonsState extends State<_ActionButtons> {
   Future<void> _share() async {
     setState(() => _printing = true);
     try {
-      final doc = ReceiptPdfService.generate(
+      final doc = await ReceiptPdfService.generate(
         data: widget.data,
         settings: widget.settings,
       );
@@ -267,170 +252,208 @@ class _ActionButtonsState extends State<_ActionButtons> {
 
 // ─── Shared Receipt Card ──────────────────────────────────────────────────────
 class _ReceiptCard extends StatelessWidget {
-  final String invoiceNo;
-  final String createdAt;
-  final List items;
-  final double subtotal;
-  final double discount;
-  final double taxAmount;
-  final String? taxLabel;
-  final double grandTotal;
-  final String paymentStatus;
-  final String shopName;
-  final String? footer;
+  final Map<String, dynamic> data;
+  final ShopSettings settings;
 
   const _ReceiptCard({
-    required this.invoiceNo,
-    required this.createdAt,
-    required this.items,
-    required this.subtotal,
-    required this.discount,
-    required this.taxAmount,
-    this.taxLabel,
-    required this.grandTotal,
-    required this.paymentStatus,
-    required this.shopName,
-    this.footer,
+    required this.data,
+    required this.settings,
   });
 
   @override
   Widget build(BuildContext context) {
-    final dateStr = createdAt.isNotEmpty
-        ? DateTime.tryParse(createdAt)?.toDisplayDateTime() ?? createdAt
-        : '';
+    final invoiceNo = data['invoice_no'] as String? ?? '';
+    final createdAt = data['created_at'] as String? ?? '';
+    final staffName = data['staff_name'] as String? ?? '';
+    final customerName = data['customer_name'] as String? ?? 'Walk-in Customer';
+    
+    final items = data['items'] as List? ?? [];
+    final payments = data['payments'] as List? ?? [];
+    
+    final subtotal = (data['subtotal'] as num?)?.toDouble() ?? 0;
+    final discount = (data['discount'] as num?)?.toDouble() ?? 0;
+    final taxAmount = (data['tax_amount'] as num?)?.toDouble() ?? 0;
+    final grandTotal = (data['grand_total'] as num?)?.toDouble() ?? 0;
+    final amountPaid = (data['amount_paid'] as num?)?.toDouble() ?? 0;
+    final balanceDue = (data['balance_due'] as num?)?.toDouble() ?? 0;
+
+    DateTime? saleDate;
+    try {
+      saleDate = DateTime.parse(createdAt);
+    } catch (_) {}
+    
+    final dateStr = saleDate != null ? DateFormat('dd/MM/yyyy').format(saleDate) : '';
+    final timeStr = saleDate != null ? DateFormat('hh:mm a').format(saleDate) : '';
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: AppTheme.cardDark,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppTheme.borderDark),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Header
-          Center(
-            child: Column(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    gradient: AppTheme.primaryGradient,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: const Icon(
-                    Icons.receipt_long_rounded,
-                    color: Colors.white,
-                    size: 28,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  shopName,
-                  style: const TextStyle(
-                    color: AppTheme.textPrimary,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  invoiceNo,
-                  style: const TextStyle(
-                    color: AppTheme.textSecondary,
-                    fontSize: 13,
-                  ),
-                ),
-                Text(
-                  dateStr,
-                  style: const TextStyle(
-                    color: AppTheme.textHint,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
+          // Business header
+          Text(
+            settings.shopName,
+            style: const TextStyle(color: AppTheme.textPrimary, fontSize: 22, fontWeight: FontWeight.bold),
+            textAlign: TextAlign.center,
+          ),
+          if (settings.address != null && settings.address!.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              settings.address!,
+              style: const TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+              textAlign: TextAlign.center,
             ),
+          ],
+          if (settings.phone != null && settings.phone!.isNotEmpty) ...[
+            const SizedBox(height: 2),
+            Text(
+              'Tel: ${settings.phone}',
+              style: const TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+              textAlign: TextAlign.center,
+            ),
+          ],
+          
+          const SizedBox(height: 20),
+          const Text(
+            'SALES RECEIPT',
+            style: TextStyle(color: AppTheme.textPrimary, fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 1),
+            textAlign: TextAlign.center,
           ),
           const SizedBox(height: 20),
-          const Divider(),
-          const SizedBox(height: 8),
+
+          // Invoice info
+          _InfoRow('Invoice No:', invoiceNo),
+          if (dateStr.isNotEmpty) _InfoRow('Date:', dateStr),
+          if (timeStr.isNotEmpty) _InfoRow('Time:', timeStr),
+          if (staffName.isNotEmpty) _InfoRow('Cashier:', staffName),
+          _InfoRow('Customer:', customerName),
+          
+          const SizedBox(height: 12),
+          const _DashedDivider(),
+          const SizedBox(height: 12),
+
+          // Items header
+          const Text('ITEMS', style: TextStyle(color: AppTheme.textPrimary, fontSize: 14, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
+          
+          const SizedBox(height: 12),
+          const _DashedDivider(),
+          const SizedBox(height: 12),
 
           // Items
           ...items.map((item) {
             final name = item['product_name'] ?? '';
             final qty = item['quantity'] ?? 0;
+            final unitPrice = (item['unit_price'] as num?)?.toDouble() ?? 0;
             final lineTotal = (item['line_total'] as num?)?.toDouble() ?? 0;
             return Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              child: Row(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: Text(
-                      name,
-                      style: const TextStyle(
-                          color: AppTheme.textPrimary, fontSize: 13),
-                    ),
-                  ),
-                  Text(
-                    'x$qty',
-                    style: const TextStyle(
-                        color: AppTheme.textSecondary, fontSize: 13),
-                  ),
-                  const SizedBox(width: 20),
-                  Text(
-                    lineTotal.toCurrency(),
-                    style: const TextStyle(
-                        color: AppTheme.textPrimary, fontSize: 13),
+                  Text(name, style: const TextStyle(color: AppTheme.textPrimary, fontSize: 14, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 4),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('$qty x ${unitPrice.toCurrency()}', style: const TextStyle(color: AppTheme.textSecondary, fontSize: 14)),
+                      Text(lineTotal.toCurrency(), style: const TextStyle(color: AppTheme.textPrimary, fontSize: 14)),
+                    ],
                   ),
                 ],
               ),
             );
           }),
 
-          const SizedBox(height: 8),
-          const Divider(),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
+          const _DashedDivider(),
+          const SizedBox(height: 12),
 
           // Totals
-          _TotalRow(label: 'Subtotal', value: subtotal.toCurrency()),
-          if (discount > 0)
-            _TotalRow(
-              label: 'Discount',
-              value: '- ${discount.toCurrency()}',
-              color: AppTheme.warning,
-            ),
-          if (taxAmount > 0)
-            _TotalRow(
-              label: taxLabel ?? 'Tax',
-              value: taxAmount.toCurrency(),
-              color: AppTheme.textSecondary,
-            ),
-          const SizedBox(height: 6),
-          _TotalRow(
-            label: 'Grand Total',
-            value: grandTotal.toCurrency(),
-            isBold: true,
-            color: AppTheme.accent,
-          ),
-          const SizedBox(height: 6),
-          _TotalRow(label: 'Payment', value: paymentStatus),
+          _TotalRow('Subtotal:', subtotal.toCurrency()),
+          _TotalRow('Discount:', discount.toCurrency()),
+          _TotalRow('Tax/VAT:', taxAmount.toCurrency()),
+          
+          const SizedBox(height: 12),
+          const _DashedDivider(),
+          const SizedBox(height: 12),
+          
+          _TotalRow('GRAND TOTAL:', grandTotal.toCurrency(), isBold: true, color: AppTheme.accent),
+          
+          const SizedBox(height: 12),
+          const _DashedDivider(),
+          const SizedBox(height: 12),
 
-          const SizedBox(height: 16),
-          const Divider(),
-          const SizedBox(height: 8),
-          Center(
-            child: Text(
-              footer?.isNotEmpty == true
-                  ? footer!
-                  : 'Thank you for shopping!',
-              style: const TextStyle(
-                color: AppTheme.textHint,
-                fontSize: 12,
-                fontStyle: FontStyle.italic,
-              ),
-              textAlign: TextAlign.center,
+          // Payments
+          if (payments.length == 1) ...[
+            _TotalRow('Payment Method:', payments.first['method'] as String? ?? 'Cash'),
+            _TotalRow('Paid Amount:', ((payments.first['amount'] as num?)?.toDouble() ?? 0).toCurrency()),
+            _TotalRow(balanceDue < 0 ? 'Change:' : 'Balance:', balanceDue.abs().toCurrency()),
+          ] else if (payments.length > 1) ...[
+            const Text('Payment Method:', style: TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
+            const SizedBox(height: 4),
+            ...payments.map((p) {
+              final method = p['method'] as String? ?? 'Unknown';
+              final amt = (p['amount'] as num?)?.toDouble() ?? 0;
+              return _TotalRow('  $method:', amt.toCurrency());
+            }),
+            const SizedBox(height: 4),
+            _TotalRow('Total Paid:', amountPaid.toCurrency()),
+            _TotalRow(balanceDue < 0 ? 'Change:' : 'Balance:', balanceDue.abs().toCurrency()),
+          ] else ...[
+            _TotalRow('Total Paid:', amountPaid.toCurrency()),
+            _TotalRow(balanceDue < 0 ? 'Change:' : 'Balance:', balanceDue.abs().toCurrency()),
+          ],
+
+          const SizedBox(height: 24),
+
+          // Footer
+          Text(
+            settings.receiptFooter?.isNotEmpty == true
+                ? settings.receiptFooter!
+                : 'Thank you for shopping with us.\nGoods once sold are not returnable unless damaged.\nPlease keep this receipt for warranty/returns.',
+            style: const TextStyle(
+              color: AppTheme.textHint,
+              fontSize: 12,
+              height: 1.5,
             ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          Center(
+            child: Image.asset(
+              'assets/images/logo.png',
+              height: 40,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InfoRow extends StatelessWidget {
+  final String label;
+  final String value;
+  const _InfoRow(this.label, this.value);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 90,
+            child: Text(label, style: const TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
+          ),
+          Expanded(
+            child: Text(value, style: const TextStyle(color: AppTheme.textPrimary, fontSize: 13), textAlign: TextAlign.right),
           ),
         ],
       ),
@@ -444,35 +467,67 @@ class _TotalRow extends StatelessWidget {
   final bool isBold;
   final Color? color;
 
-  const _TotalRow({
-    required this.label,
-    required this.value,
+  const _TotalRow(
+    this.label,
+    this.value, {
     this.isBold = false,
     this.color,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            color: isBold ? AppTheme.textPrimary : AppTheme.textSecondary,
-            fontSize: isBold ? 16 : 13,
-            fontWeight: isBold ? FontWeight.w700 : FontWeight.normal,
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              color: isBold ? AppTheme.textPrimary : AppTheme.textSecondary,
+              fontSize: isBold ? 16 : 13,
+              fontWeight: isBold ? FontWeight.w700 : FontWeight.normal,
+            ),
           ),
-        ),
-        Text(
-          value,
-          style: TextStyle(
-            color: color ?? AppTheme.textPrimary,
-            fontSize: isBold ? 18 : 13,
-            fontWeight: isBold ? FontWeight.w700 : FontWeight.normal,
+          Text(
+            value,
+            style: TextStyle(
+              color: color ?? (isBold ? AppTheme.textPrimary : AppTheme.textPrimary),
+              fontSize: isBold ? 18 : 14,
+              fontWeight: isBold ? FontWeight.w700 : FontWeight.w500,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
+    );
+  }
+}
+
+class _DashedDivider extends StatelessWidget {
+  const _DashedDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final boxWidth = constraints.constrainWidth();
+        const dashWidth = 5.0;
+        const dashHeight = 1.0;
+        final dashCount = (boxWidth / (2 * dashWidth)).floor();
+        return Flex(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          direction: Axis.horizontal,
+          children: List.generate(dashCount, (_) {
+            return const SizedBox(
+              width: dashWidth,
+              height: dashHeight,
+              child: DecoratedBox(
+                decoration: BoxDecoration(color: AppTheme.borderDark),
+              ),
+            );
+          }),
+        );
+      },
     );
   }
 }
