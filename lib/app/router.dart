@@ -26,6 +26,7 @@ import '../features/reports/presentation/screens/stock_valuation_report_screen.d
 import '../features/reports/presentation/screens/customer_ledger_report_screen.dart';
 import '../features/reports/presentation/screens/supplier_ledger_report_screen.dart';
 import '../features/suppliers/presentation/screens/supplier_list_screen.dart';
+import '../features/customers/presentation/screens/customer_list_screen.dart';
 import '../features/payments/presentation/screens/supplier_payments_screen.dart';
 import '../features/payments/presentation/screens/customer_payments_screen.dart';
 import '../features/quotations/presentation/screens/quotation_list_screen.dart';
@@ -63,6 +64,7 @@ class AppRoutes {
   static const customerPayments = '/payments/customer';
   static const supplierPayments = '/payments/supplier';
   static const suppliers = '/suppliers';
+  static const customers = '/customers';
   static const quotations = '/quotations';
   static const createQuotation = '/quotations/create';
   static const settings = '/settings';
@@ -102,6 +104,14 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: AppRoutes.products,
             builder: (_, __) => const ProductListScreen(),
+          ),
+          GoRoute(
+            path: AppRoutes.suppliers,
+            builder: (_, __) => const SupplierListScreen(),
+          ),
+          GoRoute(
+            path: AppRoutes.customers,
+            builder: (_, __) => const CustomerListScreen(),
           ),
           GoRoute(
             path: AppRoutes.settings,

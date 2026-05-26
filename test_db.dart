@@ -5,12 +5,10 @@ import 'lib/app/env.dart';
 void main() async {
   final client = SupabaseClient(Env.supabaseUrl, Env.supabaseAnonKey);
   try {
-    final res = await client.rpc('execute_sql', params: {
-      'query': 'SELECT column_name, is_nullable FROM information_schema.columns WHERE table_name = ''sales'';'
-    });
-    print(res);
+    final res = await client.from('customers').select().limit(1);
+    print('Customers fetch success');
   } catch (e) {
-    print(e);
+    print('Error: \');
   }
 }
 

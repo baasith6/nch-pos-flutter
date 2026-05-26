@@ -12,6 +12,7 @@ import '../../../sales/data/models/sale_model.dart';
 import '../../../sales/data/repositories/sales_repository.dart';
 import '../../../settings/data/repositories/payment_method_repository.dart';
 import '../../../customers/data/models/customer_model.dart';
+import '../../../customers/presentation/providers/customer_providers.dart';
 import '../screens/pos_screen.dart';
 
 class CheckoutScreen extends ConsumerStatefulWidget {
@@ -136,6 +137,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       ];
     }
     
+    final customersAsync = ref.watch(activeCustomersProvider);
+    final List<CustomerModel> customers = customersAsync.value ?? [];
+    
     final cartItemCount = ref.watch(cartProvider).length;
     final bool isCompleteDisabled = _totalPaid < widget.grandTotal || _isLoading;
 
@@ -226,9 +230,12 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                                       borderSide: BorderSide.none,
                                     ),
                                   ),
-                                  items: const [
-                                    DropdownMenuItem(value: null, child: Text('Walk-in Customer')),
-                                    // Add actual customers from provider if fetched
+                                  items: [
+                                    const DropdownMenuItem<CustomerModel?>(value: null, child: Text('Walk-in Customer')),
+                                    ...customers.map((c) => DropdownMenuItem<CustomerModel?>(
+                                      value: c,
+                                      child: Text(c.name),
+                                    )),
                                   ],
                                   onChanged: (val) => setState(() => _selectedCustomer = val),
                                 ),

@@ -387,6 +387,7 @@ class AdminDashboardScreen extends ConsumerWidget {
                         children: [
                           _buildToolChip('Products', Icons.inventory_2_rounded, () => context.go(AppRoutes.products)),
                           _buildToolChip('Suppliers', Icons.local_shipping_rounded, () => context.push(AppRoutes.suppliers)),
+                          _buildToolChip('Customers', Icons.people_alt_rounded, () => context.push(AppRoutes.customers)),
                           _buildToolChip('Categories', Icons.category_rounded, () => context.push(AppRoutes.categories)),
                           _buildToolChip('Reports', Icons.bar_chart_rounded, () => context.push(AppRoutes.reports)),
                           _buildToolChip('Staff', Icons.people_rounded, () => context.push(AppRoutes.staff)),
