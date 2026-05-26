@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../../app/theme.dart';
+import '../../../../core/extensions/extensions.dart';
 import '../../data/repositories/purchases_repository.dart';
 
 final _purchaseOrdersProvider = FutureProvider((ref) {
@@ -51,7 +52,7 @@ class PurchaseOrderListScreen extends ConsumerWidget {
                       Text('Status: ${po.poStatus} | Receiving: ${po.receivingStatus}', style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12)),
                     ],
                   ),
-                  trailing: Text('\$${po.grandTotal.toStringAsFixed(2)}', style: const TextStyle(color: AppTheme.accent, fontWeight: FontWeight.bold, fontSize: 16)),
+                  trailing: Text(po.grandTotal.toCurrency(), style: const TextStyle(color: AppTheme.accent, fontWeight: FontWeight.bold, fontSize: 16)),
                   onTap: () {
                     // Navigate to GRN Screen or View PO Screen
                     context.push('/purchases/\${po.id}/receive');

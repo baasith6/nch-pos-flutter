@@ -29,7 +29,18 @@ class SalesHistoryScreen extends ConsumerWidget {
         title: const Text('Sales History'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded),
-          onPressed: () => context.pop(),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              final profile = ref.read(currentProfileProvider).value;
+              if (profile?.isAdmin == true) {
+                context.go(AppRoutes.adminDashboard);
+              } else {
+                context.go(AppRoutes.staffDashboard);
+              }
+            }
+          },
         ),
       ),
       body: salesAsync.when(

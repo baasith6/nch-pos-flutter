@@ -1,0 +1,104 @@
+Created At: 2026-05-26T05:21:04Z
+Completed At: 2026-05-26T05:21:04Z
+File Path: `file:///f:/tic/flutterpos/lib/features/pos/presentation/screens/checkout_screen.dart`
+Total Lines: 455
+Total Bytes: 22186
+Showing lines 50 to 149
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+50: 
+51:   void _addPayment() {
+52:     setState(() {
+53:       _payments.add(CheckoutPayment(
+54:         paymentMethodId: AppConstants.paymentCard,
+55:         paymentMethodName: AppConstants.paymentCard,
+56:         amount: 0,
+57:       ));
+58:     });
+59:   }
+60: 
+61:   double get _totalPaid => _payments.fold(0, (sum, p) => sum + p.amount);
+62:   double get _balanceDue => widget.grandTotal - _totalPaid;
+63: 
+64:   Future<void> _processCheckout() async {
+65:     if (_totalPaid < widget.grandTotal) {
+66:       ScaffoldMessenger.of(context).showSnackBar(
+67:         const SnackBar(content: Text('Total paid is less than grand total'), backgroundColor: AppTheme.danger),
+68:       );
+69:       return;
+70:     }
+71: 
+72:     setState(() => _isLoading = true);
+73: 
+74:     try {
+75:       final cart = ref.read(cartProvider);
+76:       final connectivity = await Connectivity().checkConnectivity();
+77:       final isOffline = connectivity.contains(ConnectivityResult.none);
+78:       final saleId = const Uuid().v4();
+79: 
+80:       if (isOffline) {
+81:         // Enqueue offline
+82:         final payload = {
+83:           'customer_id': _selectedCustomer?.id,
+84:           'items': cart.map((e) => e.toRpcJson()).toList(),
+85:           'payments': _payments.map((e) => e.toRpcJson()).toList(),
+86:           'subtotal': widget.subtotal,
+87:           'discount': widget.discount,
+88:           'tax_amount': widget.taxAmount,
+89:           'grand_total': widget.grandTotal,
+90:         };
+91:         await LocalDbService().enqueueSale(saleId, payload);
+92:         
+
+<truncated 278 bytes>
+h online
+100:         await ref.read(salesRepositoryProvider).createSale(
+101:           saleId: saleId,
+102:           customerId: _selectedCustomer?.id,
+103:           items: cart,
+104:           payments: _payments,
+105:           subtotal: widget.subtotal,
+106:           discount: widget.discount,
+107:           taxAmount: widget.taxAmount,
+108:           grandTotal: widget.grandTotal,
+109:         );
+110:       }
+111: 
+112:       // Clear cart
+113:       ref.read(cartProvider.notifier).clearCart();
+114: 
+115:       if (mounted) {
+116:         ScaffoldMessenger.of(context).showSnackBar(
+117:           const SnackBar(content: Text('Sale completed successfully!'), backgroundColor: AppTheme.success),
+118:         );
+119:         context.pop(true); // Success
+120:         context.push(AppRoutes.receipt.replaceAll(':saleId', saleId), extra: {'sale_id': saleId});
+121:       }
+122:     } catch (e) {
+123:       if (mounted) {
+124:         ScaffoldMessenger.of(context).showSnackBar(
+125:           SnackBar(content: Text('Error: $e'), backgroundColor: AppTheme.danger),
+126:         );
+127:       }
+128:     } finally {
+129:       if (mounted) setState(() => _isLoading = false);
+130:     }
+131:   }
+132: 
+133:   @override
+134:   Widget build(BuildContext context) {
+135:     final methodsAsync = ref.watch(paymentMethodsProvider);
+136:     List<String> paymentMethods = methodsAsync.value ?? [];
+137:     if (paymentMethods.isEmpty) {
+138:       paymentMethods = [
+139:         AppConstants.paymentCash,
+140:         AppConstants.paymentCard,
+141:         AppConstants.paymentTransfer
+142:       ];
+143:     }
+144:     
+145:     final cartItemCount = ref.watch(cartProvider).length;
+146:     final bool isCompleteDisabled = _totalPaid < widget.grandTotal || _isLoading;
+147: 
+148:     return Scaffold(
+149:       backgroundColor: AppTheme.background,
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

@@ -12,7 +12,6 @@ class SupplierRepository {
     final data = await _client
         .from('suppliers')
         .select('*')
-        .eq('status', 'Active')
         .order('name');
     return (data as List)
         .map((e) => SupplierModel.fromJson(e as Map<String, dynamic>))

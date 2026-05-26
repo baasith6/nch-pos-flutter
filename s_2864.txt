@@ -1,0 +1,69 @@
+Created At: 2026-05-26T05:20:53Z
+Completed At: 2026-05-26T05:20:53Z
+File Path: `file:///f:/tic/flutterpos/lib/features/pos/presentation/screens/checkout_screen.dart`
+Total Lines: 455
+Total Bytes: 22186
+Showing lines 150 to 250
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+150:       appBar: AppBar(
+151:         title: const Text('Checkout'),
+152:         backgroundColor: AppTheme.surfaceDark,
+153:       ),
+154:       body: SafeArea(
+155:         child: Column(
+156:           children: [
+157:             Expanded(
+158:               child: Align(
+159:                 alignment: Alignment.topCenter,
+160:                 child: ConstrainedBox(
+161:                   constraints: const BoxConstraints(maxWidth: 600),
+162:                   child: SingleChildScrollView(
+163:                     padding: const EdgeInsets.all(20),
+164:                     child: Column(
+165:                       crossAxisAlignment: CrossAxisAlignment.stretch,
+166:                       children: [
+167:                         // Order Summary Card
+168:                         Card(
+169:                           elevation: 0,
+170:                           margin: EdgeInsets.zero,
+171:                           shape: RoundedRectangleBorder(
+172:                             borderRadius: BorderRadius.circular(22),
+173:                             side: const BorderSide(color: AppTheme.borderDark),
+174:                           ),
+175:                           child: Padding(
+176:                             padding: const EdgeInsets.all(20),
+177:                             child: Column(
+178:                               crossAxisAlignment: CrossAxisAlignment.start,
+179:                               children: [
+180:                                 Row(
+181:                                   mainAxisAlignment: MainAxisAlignment.spaceBetween
+<truncated 2851 bytes>
+                             dropdownColor: AppTheme.surfaceDark,
+224:                                   icon: const Icon(Icons.person_outline, color: AppTheme.textSecondary),
+225:                                   style: const TextStyle(color: AppTheme.textPrimary, fontSize: 15),
+226:                                   decoration: InputDecoration(
+227:                                     filled: true,
+228:                                     fillColor: AppTheme.elevatedDark,
+229:                                     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+230:                                     border: OutlineInputBorder(
+231:                                       borderRadius: BorderRadius.circular(14),
+232:                                       borderSide: BorderSide.none,
+233:                                     ),
+234:                                   ),
+235:                                   items: const [
+236:                                     DropdownMenuItem(value: null, child: Text('Walk-in Customer')),
+237:                                     // Add actual customers from provider if fetched
+238:                                   ],
+239:                                   onChanged: (val) => setState(() => _selectedCustomer = val),
+240:                                 ),
+241:                               ],
+242:                             ),
+243:                           ),
+244:                         ),
+245:                         const SizedBox(height: 20),
+246: 
+247:                         // Payments Section
+248:                         const Text('Payment Split', style: TextStyle(color: AppTheme.textPrimary, fontSize: 16, fontWeight: FontWeight.w600)),
+249:                         const SizedBox(height: 12),
+250:                         ..._payments.asMap().entries.map((e) {
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

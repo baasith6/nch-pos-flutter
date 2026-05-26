@@ -42,7 +42,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     super.initState();
     // Default to Cash for the full amount
     _payments.add(CheckoutPayment(
-      paymentMethodId: AppConstants.paymentCash, // Assuming the name or ID is the same for simplicity
+      paymentMethodId: AppConstants.paymentCash, 
       paymentMethodName: AppConstants.paymentCash,
       amount: widget.grandTotal,
     ));
@@ -78,7 +78,6 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       final saleId = const Uuid().v4();
 
       if (isOffline) {
-        // Enqueue offline
         final payload = {
           'customer_id': _selectedCustomer?.id,
           'items': cart.map((e) => e.toRpcJson()).toList(),
@@ -92,11 +91,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Offline Sale Saved! It will sync later.'), backgroundColor: AppTheme.accent),
+            const SnackBar(content: Text('Offline Sale Saved! It will sync later.'), backgroundColor: AppTheme.success),
           );
         }
       } else {
-        // Push online
         await ref.read(salesRepositoryProvider).createSale(
           saleId: saleId,
           customerId: _selectedCustomer?.id,
@@ -109,17 +107,18 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         );
       }
 
-      // Clear cart
       ref.read(cartProvider.notifier).clearCart();
 
       if (mounted) {
-        context.pop(true); // Success
-        context.push(AppRoutes.receipt.replaceAll(':saleId', saleId), extra: {'sale_id': saleId});
+        context.pop(true);
+        context.push(AppRoutes.receipt.replaceAll(':saleId', saleId));
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: \$e'), backgroundColor: AppTheme.danger),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: AppTheme.danger),
+        );
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -128,11 +127,17 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   @override
   Widget build(BuildContext context) {
     final methodsAsync = ref.watch(paymentMethodsProvider);
-    final paymentMethods = methodsAsync.value ?? [
-      AppConstants.paymentCash,
-      AppConstants.paymentCard,
-      AppConstants.paymentTransfer
-    ];
+    List<String> paymentMethods = methodsAsync.value ?? [];
+    if (paymentMethods.isEmpty) {
+      paymentMethods = [
+        AppConstants.paymentCash,
+        AppConstants.paymentCard,
+        AppConstants.paymentTransfer
+      ];
+    }
+    
+    final cartItemCount = ref.watch(cartProvider).length;
+    final bool isCompleteDisabled = _totalPaid < widget.grandTotal || _isLoading;
 
     return Scaffold(
       backgroundColor: AppTheme.background,
@@ -140,139 +145,281 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         title: const Text('Checkout'),
         backgroundColor: AppTheme.surfaceDark,
       ),
-      body: Center(
-        child: Container(
-          width: 600,
-          padding: const EdgeInsets.all(24),
-          child: ListView(
-            shrinkWrap: true,
-            children: [
-              const SizedBox(height: 20),
+      body: SafeArea(
+        child: Column(
+          children: [
+            Expanded(
+              child: Align(
+                alignment: Alignment.topCenter,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 600),
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // Order Summary Card
+                        Card(
+                          elevation: 0,
+                          margin: EdgeInsets.zero,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(22),
+                            side: const BorderSide(color: AppTheme.borderDark),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(20),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    const Text('Order Summary', style: TextStyle(color: AppTheme.textPrimary, fontSize: 16, fontWeight: FontWeight.w600)),
+                                    Text('$cartItemCount item${cartItemCount != 1 ? 's' : ''}', style: const TextStyle(color: AppTheme.textSecondary, fontSize: 14)),
+                                  ],
+                                ),
+                                const SizedBox(height: 16),
+                                _buildSummaryRow('Subtotal', widget.subtotal.toCurrency()),
+                                const SizedBox(height: 8),
+                                _buildSummaryRow('Discount', widget.discount.toCurrency(), isDiscount: true),
+                                const SizedBox(height: 8),
+                                const Divider(color: AppTheme.borderDark),
+                                const SizedBox(height: 8),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    const Text('Grand Total', style: TextStyle(color: AppTheme.textPrimary, fontSize: 16, fontWeight: FontWeight.w600)),
+                                    Text(widget.grandTotal.toCurrency(), style: const TextStyle(color: AppTheme.textPrimary, fontSize: 18, fontWeight: FontWeight.bold)),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 20),
 
-            // Customer Selection (Mocked for simplicity)
-            Row(
-              children: [
-                const Icon(Icons.person_outline, color: AppTheme.textSecondary),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: DropdownButtonFormField<CustomerModel?>(
-                    dropdownColor: AppTheme.elevatedDark,
-                    style: const TextStyle(color: AppTheme.textPrimary),
-                    decoration: const InputDecoration(
-                      labelText: 'Select Customer (Optional)',
-                      labelStyle: TextStyle(color: AppTheme.textSecondary),
-                      border: OutlineInputBorder(),
+                        // Customer Section
+                        Card(
+                          elevation: 0,
+                          margin: EdgeInsets.zero,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(22),
+                            side: const BorderSide(color: AppTheme.borderDark),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(20),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text('Customer', style: TextStyle(color: AppTheme.textPrimary, fontSize: 16, fontWeight: FontWeight.w600)),
+                                const SizedBox(height: 12),
+                                DropdownButtonFormField<CustomerModel?>(
+                                  dropdownColor: AppTheme.surfaceDark,
+                                  icon: const Icon(Icons.person_outline, color: AppTheme.textSecondary),
+                                  style: const TextStyle(color: AppTheme.textPrimary, fontSize: 15),
+                                  decoration: InputDecoration(
+                                    filled: true,
+                                    fillColor: AppTheme.elevatedDark,
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(14),
+                                      borderSide: BorderSide.none,
+                                    ),
+                                  ),
+                                  items: const [
+                                    DropdownMenuItem(value: null, child: Text('Walk-in Customer')),
+                                    // Add actual customers from provider if fetched
+                                  ],
+                                  onChanged: (val) => setState(() => _selectedCustomer = val),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+
+                        // Payments Section
+                        const Text('Payment Split', style: TextStyle(color: AppTheme.textPrimary, fontSize: 16, fontWeight: FontWeight.w600)),
+                        const SizedBox(height: 12),
+                        ..._payments.asMap().entries.map((e) {
+                          final idx = e.key;
+                          final p = e.value;
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 12.0),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  flex: 2,
+                                  child: DropdownButtonFormField<String>(
+                                    value: paymentMethods.contains(p.paymentMethodName) ? p.paymentMethodName : paymentMethods.first,
+                                    dropdownColor: AppTheme.surfaceDark,
+                                    icon: const Icon(Icons.keyboard_arrow_down, color: AppTheme.textSecondary),
+                                    style: const TextStyle(color: AppTheme.textPrimary, fontSize: 15),
+                                    decoration: InputDecoration(
+                                      filled: true,
+                                      fillColor: AppTheme.elevatedDark,
+                                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(14),
+                                        borderSide: BorderSide.none,
+                                      ),
+                                    ),
+                                    items: paymentMethods.map((m) => DropdownMenuItem(value: m, child: Text(m))).toList(),
+                                    onChanged: (val) {
+                                      if (val != null) {
+                                        setState(() {
+                                          p.paymentMethodName = val;
+                                          p.paymentMethodId = val;
+                                        });
+                                      }
+                                    },
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  flex: 2,
+                                  child: TextFormField(
+                                    initialValue: p.amount > 0 ? p.amount.toStringAsFixed(2) : '',
+                                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                    style: const TextStyle(color: AppTheme.textPrimary, fontSize: 15, fontWeight: FontWeight.w600),
+                                    decoration: InputDecoration(
+                                      prefixText: 'LKR ',
+                                      prefixStyle: const TextStyle(color: AppTheme.textSecondary, fontSize: 15),
+                                      filled: true,
+                                      fillColor: AppTheme.elevatedDark,
+                                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(14),
+                                        borderSide: BorderSide.none,
+                                      ),
+                                    ),
+                                    onChanged: (val) {
+                                      setState(() {
+                                        _payments[idx].amount = double.tryParse(val) ?? 0;
+                                      });
+                                    },
+                                  ),
+                                ),
+                                if (_payments.length > 1)
+                                  Padding(
+                                    padding: const EdgeInsets.only(left: 8.0),
+                                    child: IconButton(
+                                      icon: const Icon(Icons.remove_circle_outline, color: AppTheme.danger),
+                                      onPressed: () {
+                                        setState(() => _payments.removeAt(idx));
+                                      },
+                                    ),
+                                  )
+                              ],
+                            ),
+                          );
+                        }),
+                        
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: TextButton.icon(
+                            onPressed: _addPayment,
+                            icon: const Icon(Icons.add, color: AppTheme.primary),
+                            label: const Text('Add Split Payment', style: TextStyle(color: AppTheme.primary, fontWeight: FontWeight.w600)),
+                          ),
+                        ),
+                      ],
                     ),
-                    items: const [
-                      DropdownMenuItem(value: null, child: Text('Walk-in Customer')),
-                      // Add actual customers from provider if fetched
-                    ],
-                    onChanged: (val) => setState(() => _selectedCustomer = val),
                   ),
                 ),
-              ],
-            ),
-            const SizedBox(height: 20),
-
-            // Split Payments
-            const Text('Payment Methods', style: TextStyle(color: AppTheme.textPrimary, fontSize: 16)),
-            const SizedBox(height: 8),
-            ..._payments.asMap().entries.map((e) {
-              final idx = e.key;
-              final p = e.value;
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 8.0),
-                child: Row(
-                  children: [
-                    Expanded(
-                      flex: 2,
-                      child: DropdownButtonFormField<String>(
-                        value: paymentMethods.contains(p.paymentMethodName) ? p.paymentMethodName : paymentMethods.first,
-                        dropdownColor: AppTheme.elevatedDark,
-                        style: const TextStyle(color: AppTheme.textPrimary),
-                        items: paymentMethods.map((m) => DropdownMenuItem(value: m, child: Text(m))).toList(),
-                        onChanged: (val) {
-                          if (val != null) {
-                            setState(() {
-                              p.amount = p.amount; // Keep amount
-                            });
-                          }
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      flex: 1,
-                      child: TextFormField(
-                        initialValue: p.amount.toStringAsFixed(2),
-                        keyboardType: TextInputType.number,
-                        style: const TextStyle(color: AppTheme.textPrimary),
-                        decoration: const InputDecoration(prefixText: '\$'),
-                        onChanged: (val) {
-                          setState(() {
-                            _payments[idx].amount = double.tryParse(val) ?? 0;
-                          });
-                        },
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close, color: AppTheme.danger),
-                      onPressed: () {
-                        if (_payments.length > 1) {
-                          setState(() => _payments.removeAt(idx));
-                        }
-                      },
-                    )
-                  ],
-                ),
-              );
-            }),
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton.icon(
-                onPressed: _addPayment,
-                icon: const Icon(Icons.add, color: AppTheme.accent),
-                label: const Text('Add Split Payment', style: TextStyle(color: AppTheme.accent)),
               ),
             ),
-            const Divider(color: AppTheme.borderDark),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text('Grand Total:', style: TextStyle(color: AppTheme.textSecondary, fontSize: 16)),
-                Text(widget.grandTotal.toCurrency(), style: const TextStyle(color: AppTheme.textPrimary, fontSize: 18, fontWeight: FontWeight.bold)),
-              ],
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text('Total Paid:', style: TextStyle(color: AppTheme.textSecondary, fontSize: 16)),
-                Text(_totalPaid.toCurrency(), style: TextStyle(color: _totalPaid >= widget.grandTotal ? AppTheme.accent : AppTheme.warning, fontSize: 18, fontWeight: FontWeight.bold)),
-              ],
-            ),
-            const SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                TextButton(
-                  onPressed: () => context.pop(),
-                  child: const Text('Cancel', style: TextStyle(color: AppTheme.textSecondary)),
-                ),
-                const SizedBox(width: 16),
-                ElevatedButton(
-                  onPressed: _isLoading ? null : _processCheckout,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.accent,
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            
+            // Bottom Action Area
+            Container(
+              decoration: BoxDecoration(
+                color: AppTheme.surfaceDark,
+                boxShadow: [
+                  BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, -4)),
+                ],
+              ),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 600),
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Payment Summary
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('Total Paid:', style: TextStyle(color: AppTheme.textSecondary, fontSize: 14)),
+                          Text(_totalPaid.toCurrency(), style: const TextStyle(color: AppTheme.textPrimary, fontSize: 16, fontWeight: FontWeight.w600)),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(_balanceDue < 0 ? 'Change:' : (_balanceDue == 0 ? 'Balance:' : 'Remaining:'), 
+                            style: const TextStyle(color: AppTheme.textSecondary, fontSize: 14)),
+                          Text(
+                            _balanceDue < 0 ? _balanceDue.abs().toCurrency() : (_balanceDue == 0 ? 'LKR 0.00' : _balanceDue.toCurrency()), 
+                            style: TextStyle(
+                              color: _balanceDue <= 0 ? AppTheme.success : AppTheme.danger, 
+                              fontSize: 18, 
+                              fontWeight: FontWeight.bold
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+                      // Action Buttons
+                      Row(
+                        children: [
+                          Expanded(
+                            flex: 1,
+                            child: OutlinedButton(
+                              onPressed: () => context.pop(),
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                              ),
+                              child: const Text('Cancel', style: TextStyle(color: AppTheme.textSecondary, fontSize: 16)),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            flex: 2,
+                            child: ElevatedButton(
+                              onPressed: isCompleteDisabled ? null : _processCheckout,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppTheme.primary,
+                                disabledBackgroundColor: AppTheme.disabled,
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                              ),
+                              child: _isLoading 
+                                ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                                : const Text('Complete Sale', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600)),
+                            ),
+                          ),
+                        ],
+                      )
+                    ],
                   ),
-                  child: _isLoading ? const CircularProgressIndicator(color: Colors.white) : const Text('Complete Sale'),
                 ),
-              ],
-            )
+              ),
+            ),
           ],
         ),
       ),
-      )
+    );
+  }
+
+  Widget _buildSummaryRow(String label, String value, {bool isDiscount = false}) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: const TextStyle(color: AppTheme.textSecondary, fontSize: 14)),
+        Text(value, style: TextStyle(color: isDiscount ? AppTheme.warning : AppTheme.textPrimary, fontSize: 14, fontWeight: FontWeight.w500)),
+      ],
     );
   }
 }

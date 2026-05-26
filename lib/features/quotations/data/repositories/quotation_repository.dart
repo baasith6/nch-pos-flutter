@@ -15,6 +15,15 @@ class QuotationRepository {
     return List<Map<String, dynamic>>.from(data as List);
   }
 
+  Future<int> getPendingQuotationsCount() async {
+    final res = await _client
+        .from('quotations')
+        .select('id')
+        .eq('status', 'Pending')
+        .count(CountOption.exact);
+    return res.count;
+  }
+
   Future<Map<String, dynamic>> getQuotationDetails(String id) async {
     final data = await _client
         .from('quotations')

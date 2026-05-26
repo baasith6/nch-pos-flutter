@@ -1,0 +1,76 @@
+Created At: 2026-05-26T05:51:29Z
+Completed At: 2026-05-26T05:51:29Z
+File Path: `file:///f:/tic/flutterpos/lib/features/pos/presentation/screens/checkout_screen.dart`
+Total Lines: 279
+Total Bytes: 10770
+Showing lines 150 to 250
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+150:               const SizedBox(height: 20),
+151: 
+152:             // Customer Selection (Mocked for simplicity)
+153:             Row(
+154:               children: [
+155:                 const Icon(Icons.person_outline, color: AppTheme.textSecondary),
+156:                 const SizedBox(width: 8),
+157:                 Expanded(
+158:                   child: DropdownButtonFormField<CustomerModel?>(
+159:                     dropdownColor: AppTheme.elevatedDark,
+160:                     style: const TextStyle(color: AppTheme.textPrimary),
+161:                     decoration: const InputDecoration(
+162:                       labelText: 'Select Customer (Optional)',
+163:                       labelStyle: TextStyle(color: AppTheme.textSecondary),
+164:                       border: OutlineInputBorder(),
+165:                     ),
+166:                     items: const [
+167:                       DropdownMenuItem(value: null, child: Text('Walk-in Customer')),
+168:                       // Add actual customers from provider if fetched
+169:                     ],
+170:                     onChanged: (val) => setState(() => _selectedCustomer = val),
+171:                   ),
+172:                 ),
+173:               ],
+174:             ),
+175:             const SizedBox(height: 20),
+176: 
+177:             // Split Payments
+178:             const Text('Payment Methods', style: TextStyle(color: AppTheme.textPrimary, fontSize: 16)),
+179:             const SizedBox(height: 8),
+180:             ..._payments.asMap().entries.map((e) {
+1
+<truncated 1905 bytes>
+:                       ),
+217:                     ),
+218:                     IconButton(
+219:                       icon: const Icon(Icons.close, color: AppTheme.danger),
+220:                       onPressed: () {
+221:                         if (_payments.length > 1) {
+222:                           setState(() => _payments.removeAt(idx));
+223:                         }
+224:                       },
+225:                     )
+226:                   ],
+227:                 ),
+228:               );
+229:             }),
+230:             Align(
+231:               alignment: Alignment.centerRight,
+232:               child: TextButton.icon(
+233:                 onPressed: _addPayment,
+234:                 icon: const Icon(Icons.add, color: AppTheme.accent),
+235:                 label: const Text('Add Split Payment', style: TextStyle(color: AppTheme.accent)),
+236:               ),
+237:             ),
+238:             const Divider(color: AppTheme.borderDark),
+239:             Row(
+240:               mainAxisAlignment: MainAxisAlignment.spaceBetween,
+241:               children: [
+242:                 const Text('Grand Total:', style: TextStyle(color: AppTheme.textSecondary, fontSize: 16)),
+243:                 Text(widget.grandTotal.toCurrency(), style: const TextStyle(color: AppTheme.textPrimary, fontSize: 18, fontWeight: FontWeight.bold)),
+244:               ],
+245:             ),
+246:             Row(
+247:               mainAxisAlignment: MainAxisAlignment.spaceBetween,
+248:               children: [
+249:                 const Text('Total Paid:', style: TextStyle(color: AppTheme.textSecondary, fontSize: 16)),
+250:                 Text(_totalPaid.toCurrency(), style: TextStyle(color: _totalPaid >= widget.grandTotal ? AppTheme.accent : AppTheme.warning, fontSize: 18, fontWeight: FontWeight.bold)),
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

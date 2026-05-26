@@ -70,7 +70,7 @@ class ProductRepository {
   }
 
   Future<void> delete(String id) async {
-    await _client.from('products').delete().eq('id', id);
+    await _client.from('products').update({'status': 'Inactive'}).eq('id', id);
   }
 
   Future<List<ProductModel>> getLowStock() async {

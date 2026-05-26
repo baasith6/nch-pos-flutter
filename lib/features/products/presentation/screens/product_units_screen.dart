@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:uuid/uuid.dart';
 import '../../../../app/theme.dart';
+import '../../../../core/extensions/extensions.dart';
 import '../../data/models/product_unit_model.dart';
 import '../../data/models/product_model.dart';
 import '../../data/repositories/product_repository.dart';
@@ -125,7 +126,7 @@ class _ProductUnitsScreenState extends ConsumerState<ProductUnitsScreen> {
             child: ListTile(
               title: Text(u.unitName ?? 'Unknown Unit', style: const TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.bold)),
               subtitle: Text(
-                'Multiplier: ${u.baseQuantityMultiplier} | Price: \$${u.sellingPrice.toStringAsFixed(2)}\nBarcode: ${u.barcode ?? "None"}',
+                'Multiplier: ${u.baseQuantityMultiplier} | Price: ${u.sellingPrice.toCurrency()}\nBarcode: ${u.barcode ?? "None"}',
                 style: const TextStyle(color: AppTheme.textSecondary),
               ),
               trailing: Row(

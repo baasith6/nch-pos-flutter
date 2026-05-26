@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../../app/theme.dart';
+import '../../../../core/extensions/extensions.dart';
 import '../../data/repositories/report_repository.dart';
 import '../../../suppliers/data/models/supplier_model.dart';
 import '../../../suppliers/data/repositories/supplier_repository.dart';
@@ -136,8 +137,8 @@ class _SupplierLedgerReportScreenState extends ConsumerState<SupplierLedgerRepor
                                         Row(
                                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                           children: [
-                                            Text('Total: \$${grandTotal.toStringAsFixed(2)}', style: const TextStyle(color: AppTheme.textSecondary)),
-                                            Text('Paid: \$${amountPaid.toStringAsFixed(2)}', style: const TextStyle(color: AppTheme.accent)),
+                                            Text('Total: ${grandTotal.toCurrency()}', style: const TextStyle(color: AppTheme.textSecondary)),
+                                            Text('Paid: ${amountPaid.toCurrency()}', style: const TextStyle(color: AppTheme.accent)),
                                           ],
                                         ),
                                         const Divider(color: AppTheme.borderDark),
@@ -145,7 +146,7 @@ class _SupplierLedgerReportScreenState extends ConsumerState<SupplierLedgerRepor
                                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                           children: [
                                             Text('Status: ${tx["payment_status"]}', style: const TextStyle(color: AppTheme.textSecondary)),
-                                            Text('Balance Due: \$${balanceDue.toStringAsFixed(2)}', style: const TextStyle(color: AppTheme.danger, fontWeight: FontWeight.bold)),
+                                            Text('Balance Due: ${balanceDue.toCurrency()}', style: const TextStyle(color: AppTheme.danger, fontWeight: FontWeight.bold)),
                                           ],
                                         ),
                                       ],

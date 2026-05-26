@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../app/theme.dart';
+import '../../../../core/extensions/extensions.dart';
 import '../../data/repositories/report_repository.dart';
 
 final _stockValuationProvider = FutureProvider((ref) {
@@ -60,8 +61,8 @@ class StockValuationReportScreen extends ConsumerWidget {
                       margin: const EdgeInsets.only(bottom: 12),
                       child: ListTile(
                         title: Text(item['name'], style: const TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.bold)),
-                        subtitle: Text('SKU: ${item["sku"]} | Qty: ${item["qty"]} | WAC: \$${item["cost"].toStringAsFixed(2)}', style: const TextStyle(color: AppTheme.textSecondary)),
-                        trailing: Text('\$${item["value"].toStringAsFixed(2)}', style: const TextStyle(color: AppTheme.accent, fontWeight: FontWeight.bold, fontSize: 16)),
+                        subtitle: Text('SKU: ${item["sku"]} | Qty: ${item["qty"]} | WAC: ${(item["cost"] as num).toCurrency()}', style: const TextStyle(color: AppTheme.textSecondary)),
+                        trailing: Text((item["value"] as num).toCurrency(), style: const TextStyle(color: AppTheme.accent, fontWeight: FontWeight.bold, fontSize: 16)),
                       ),
                     );
                   },

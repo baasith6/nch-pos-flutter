@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:uuid/uuid.dart';
+import '../../../../app/router.dart';
 import '../../../../app/theme.dart';
 import '../../data/models/product_model.dart';
 import '../../data/repositories/product_repository.dart';
@@ -41,9 +42,9 @@ class _AddEditProductState extends ConsumerState<AddEditProductScreen> {
   final _barcodeCtrl = TextEditingController();
   final _priceCtrl = TextEditingController();
   final _costCtrl = TextEditingController();
-  final _stockCtrl = TextEditingController(text: '0');
-  final _reorderCtrl = TextEditingController(text: '0');
-  
+  final _stockCtrl = TextEditingController();
+  final _reorderCtrl = TextEditingController();
+
   String? _categoryId;
   String? _brandId;
   String? _baseUnitId;
@@ -51,7 +52,7 @@ class _AddEditProductState extends ConsumerState<AddEditProductScreen> {
   bool _isLoading = false;
   bool _isUploadingImage = false;
 
-  String? _imageUrl; 
+  String? _imageUrl;
   bool _initialized = false;
   final _uuid = const Uuid();
 
@@ -77,8 +78,8 @@ class _AddEditProductState extends ConsumerState<AddEditProductScreen> {
       _barcodeCtrl.text = product.barcode ?? '';
       _priceCtrl.text = product.sellingPriceBase.toStringAsFixed(2);
       _costCtrl.text = product.costPrice?.toStringAsFixed(2) ?? '';
-      _stockCtrl.text = '\${product.baseStockQuantity}';
-      _reorderCtrl.text = '\${product.reorderLevelBase}';
+      _stockCtrl.text = '${product.baseStockQuantity}';
+      _reorderCtrl.text = '${product.reorderLevelBase}';
       _categoryId = product.categoryId;
       _brandId = product.brandId;
       _baseUnitId = product.baseUnitId;
@@ -88,10 +89,11 @@ class _AddEditProductState extends ConsumerState<AddEditProductScreen> {
     } catch (_) {}
   }
 
-  Future<void> _pickImage() async {
+  Future<void> _pickImage(ImageSource source) async {
+    Navigator.pop(context); // Close bottom sheet
     final picker = ImagePicker();
     final file = await picker.pickImage(
-      source: ImageSource.gallery,
+      source: source,
       imageQuality: 80,
       maxWidth: 800,
     );
@@ -115,12 +117,40 @@ class _AddEditProductState extends ConsumerState<AddEditProductScreen> {
     }
   }
 
+  void _showImagePickerSheet() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      backgroundColor: AppTheme.surface,
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.camera_alt_outlined, color: AppTheme.primary),
+                title: const Text('Take Photo', style: TextStyle(fontWeight: FontWeight.w600)),
+                onTap: () => _pickImage(ImageSource.camera),
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library_outlined, color: AppTheme.primary),
+                title: const Text('Choose from Gallery', style: TextStyle(fontWeight: FontWeight.w600)),
+                onTap: () => _pickImage(ImageSource.gallery),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    
-    if (_baseUnitId == null) {
+
+    if (_baseUnitId == null || _categoryId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Base Unit is required'), backgroundColor: AppTheme.danger),
+        const SnackBar(content: Text('Please select Category and Base Unit'), backgroundColor: AppTheme.danger),
       );
       return;
     }
@@ -129,7 +159,7 @@ class _AddEditProductState extends ConsumerState<AddEditProductScreen> {
     try {
       final isNew = widget.productId == null;
       final productId = isNew ? _uuid.v4() : widget.productId!;
-      
+
       final product = ProductModel(
         id: productId,
         sku: _skuCtrl.text.trim(),
@@ -137,12 +167,12 @@ class _AddEditProductState extends ConsumerState<AddEditProductScreen> {
         barcode: _barcodeCtrl.text.trim().isEmpty ? null : _barcodeCtrl.text.trim(),
         sellingPriceBase: double.parse(_priceCtrl.text),
         costPrice: _costCtrl.text.isNotEmpty ? double.tryParse(_costCtrl.text) : null,
-        baseStockQuantity: int.parse(_stockCtrl.text),
-        reorderLevelBase: int.parse(_reorderCtrl.text),
+        baseStockQuantity: int.parse(_stockCtrl.text.isEmpty ? '0' : _stockCtrl.text),
+        reorderLevelBase: int.parse(_reorderCtrl.text.isEmpty ? '0' : _reorderCtrl.text),
         categoryId: _categoryId,
         brandId: _brandId,
         baseUnitId: _baseUnitId,
-        attributes: {}, // For future variant usage
+        attributes: const {},
         status: _status,
         imageUrl: _imageUrl,
         createdAt: DateTime.now(),
@@ -180,278 +210,490 @@ class _AddEditProductState extends ConsumerState<AddEditProductScreen> {
     final unitsAsync = ref.watch(_unitsForFormProvider);
 
     return Scaffold(
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: Text(widget.productId == null ? 'Add Product' : 'Edit Product'),
+        title: Text(widget.productId == null ? 'Add Product' : 'Edit Product', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 18)),
+        backgroundColor: AppTheme.surface,
+        elevation: 0,
+        centerTitle: false,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
           onPressed: () => context.pop(),
         ),
-        actions: [
-          if (widget.productId != null)
-            TextButton(
-              onPressed: () {
-                context.push('/products/\${widget.productId}/units');
-              },
-              child: const Text('Manage Units', style: TextStyle(color: AppTheme.accent)),
-            )
+      ),
+      body: Column(
+        children: [
+          Expanded(
+            child: Form(
+              key: _formKey,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildImageSection(),
+                    const SizedBox(height: 28),
+                    _buildBasicInfoSection(categoriesAsync, brandsAsync, unitsAsync),
+                    const SizedBox(height: 28),
+                    _buildPricingSection(),
+                    const SizedBox(height: 28),
+                    _buildStockSection(),
+                    const SizedBox(height: 28),
+                    _buildIdentifiersSection(),
+                    const SizedBox(height: 28),
+                    _buildStatusSection(),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          _buildStickyBottomBar(),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: GestureDetector(
-                  onTap: _isUploadingImage ? null : _pickImage,
-                  child: Container(
-                    width: 120,
-                    height: 120,
-                    decoration: BoxDecoration(
-                      color: AppTheme.elevatedDark,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: AppTheme.borderDark, width: 1.5),
-                    ),
-                    clipBehavior: Clip.antiAlias,
-                    child: _isUploadingImage
-                        ? const Center(child: CircularProgressIndicator())
-                        : _imageUrl != null
-                            ? CachedNetworkImage(
-                                imageUrl: _imageUrl!,
-                                fit: BoxFit.cover,
-                                errorWidget: (_, __, ___) => _imagePlaceholder(),
-                              )
-                            : _imagePlaceholder(),
-                  ),
+    );
+  }
+
+  // ─── Sections ───────────────────────────────────────────────────────────────
+
+  Widget _buildImageSection() {
+    return Center(
+      child: Column(
+        children: [
+          Material(
+            color: AppTheme.surface,
+            borderRadius: BorderRadius.circular(20),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(20),
+              onTap: _isUploadingImage ? null : _showImagePickerSheet,
+              child: Container(
+                width: 140,
+                height: 140,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: AppTheme.border, width: 1.5),
                 ),
+                clipBehavior: Clip.antiAlias,
+                child: _isUploadingImage
+                    ? const Center(child: CircularProgressIndicator())
+                    : _imageUrl != null
+                        ? CachedNetworkImage(
+                            imageUrl: _imageUrl!,
+                            fit: BoxFit.cover,
+                            errorWidget: (_, __, ___) => _imagePlaceholder(),
+                          )
+                        : _imagePlaceholder(),
               ),
-              Center(
-                child: TextButton.icon(
-                  onPressed: _isUploadingImage ? null : _pickImage,
-                  icon: const Icon(Icons.photo_library_outlined, size: 16),
-                  label: Text(_imageUrl != null ? 'Change Image' : 'Upload Image'),
-                  style: TextButton.styleFrom(foregroundColor: AppTheme.primary),
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextButton.icon(
+            onPressed: _isUploadingImage ? null : _showImagePickerSheet,
+            icon: const Icon(Icons.add_a_photo_outlined, size: 18),
+            label: Text(_imageUrl != null ? 'Change Image' : 'Upload Image'),
+            style: TextButton.styleFrom(foregroundColor: AppTheme.primary),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBasicInfoSection(AsyncValue<List<CategoryModel>> cats, AsyncValue<List<BrandModel>> brands, AsyncValue<List<UnitModel>> units) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionTitle('Basic Information'),
+        _label('Product Name *'),
+        _buildTextField(
+          controller: _nameCtrl,
+          hint: 'e.g. Hammer',
+          validator: (v) => v == null || v.trim().isEmpty ? 'Product name is required' : null,
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _label('Category *'),
+                  cats.when(
+                    loading: () => const LinearProgressIndicator(),
+                    error: (_, __) => const Text('Error', style: TextStyle(color: AppTheme.danger)),
+                    data: (data) => _buildDropdown<String>(
+                      value: _categoryId,
+                      hint: 'Category',
+                      items: [
+                        ...data.map((c) => DropdownMenuItem(value: c.id, child: Text(c.name))),
+                        const DropdownMenuItem(value: 'add_new', child: Text('+ Add New Category', style: TextStyle(color: AppTheme.primary, fontWeight: FontWeight.w600))),
+                      ],
+                      onChanged: (v) {
+                        if (v == 'add_new') {
+                          context.push(AppRoutes.categories);
+                        } else {
+                          setState(() => _categoryId = v);
+                        }
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _label('Brand'),
+                  brands.when(
+                    loading: () => const LinearProgressIndicator(),
+                    error: (_, __) => const Text('Error', style: TextStyle(color: AppTheme.danger)),
+                    data: (data) => _buildDropdown<String>(
+                      value: _brandId,
+                      hint: 'Brand',
+                      items: [
+                        ...data.map((b) => DropdownMenuItem(value: b.id, child: Text(b.name))),
+                        const DropdownMenuItem(value: 'add_new', child: Text('+ Add New Brand', style: TextStyle(color: AppTheme.primary, fontWeight: FontWeight.w600))),
+                      ],
+                      onChanged: (v) {
+                        if (v == 'add_new') {
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Add Brand coming soon')));
+                        } else {
+                          setState(() => _brandId = v);
+                        }
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        _label('Base Unit *'),
+        units.when(
+          loading: () => const LinearProgressIndicator(),
+          error: (_, __) => const Text('Error', style: TextStyle(color: AppTheme.danger)),
+          data: (data) => _buildDropdown<String>(
+            value: _baseUnitId,
+            hint: 'Select Base Unit (e.g. Piece)',
+            items: data.map((u) => DropdownMenuItem(value: u.id, child: Text(u.name))).toList(),
+            onChanged: (v) => setState(() => _baseUnitId = v),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPricingSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionTitle('Pricing'),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _label('Selling Price *'),
+                  _buildTextField(
+                    controller: _priceCtrl,
+                    hint: '0.00',
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    validator: (v) {
+                      if (v == null || v.trim().isEmpty) return 'Required';
+                      if (double.tryParse(v) == null || double.parse(v) < 0) return 'Invalid price';
+                      return null;
+                    },
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _label('Cost Price'),
+                  _buildTextField(
+                    controller: _costCtrl,
+                    hint: '0.00',
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    readOnly: widget.productId != null,
+                    validator: (v) {
+                      if (v != null && v.isNotEmpty && (double.tryParse(v) == null || double.parse(v) < 0)) {
+                        return 'Invalid price';
+                      }
+                      return null;
+                    },
+                  ),
+                  _helperText('Used to calculate profit and stock value'),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStockSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionTitle('Stock'),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _label('Opening Stock *'),
+                  _buildTextField(
+                    controller: _stockCtrl,
+                    hint: '0',
+                    keyboardType: TextInputType.number,
+                    readOnly: widget.productId != null,
+                    validator: (v) {
+                      if (v == null || v.trim().isEmpty) return 'Required';
+                      if (int.tryParse(v) == null || int.parse(v) < 0) return 'Invalid stock';
+                      return null;
+                    },
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _label('Reorder Level'),
+                  _buildTextField(
+                    controller: _reorderCtrl,
+                    hint: '0',
+                    keyboardType: TextInputType.number,
+                    validator: (v) {
+                      if (v != null && v.isNotEmpty && (int.tryParse(v) == null || int.parse(v) < 0)) {
+                        return 'Invalid level';
+                      }
+                      return null;
+                    },
+                  ),
+                  _helperText('Alert when stock drops below this quantity'),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildIdentifiersSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionTitle('Identifiers'),
+        _label('SKU'),
+        _buildTextField(
+          controller: _skuCtrl,
+          hint: 'e.g. HW-001',
+          suffixIcon: TextButton(
+            onPressed: () {
+              // Auto-generate SKU logic based on name or random
+              if (_nameCtrl.text.isNotEmpty) {
+                 final prefix = _nameCtrl.text.substring(0, 3).toUpperCase();
+                 final random = DateTime.now().millisecondsSinceEpoch.toString().substring(9);
+                 _skuCtrl.text = '\$prefix-\$random';
+              } else {
+                 final random = DateTime.now().millisecondsSinceEpoch.toString().substring(7);
+                 _skuCtrl.text = 'HW-\$random';
+              }
+            },
+            child: const Text('Auto', style: TextStyle(fontWeight: FontWeight.w600)),
+          ),
+        ),
+        _helperText('Leave empty to auto-generate if needed'),
+        const SizedBox(height: 16),
+        _label('Barcode'),
+        _buildTextField(
+          controller: _barcodeCtrl,
+          hint: 'Scan or enter barcode',
+          suffixIcon: IconButton(
+            icon: const Icon(Icons.qr_code_scanner_rounded, color: AppTheme.primary),
+            onPressed: () {
+              // Should open scanner. For now just placeholder or use existing scanner
+            },
+          ),
+        ),
+        _helperText('Scan barcode for faster billing'),
+      ],
+    );
+  }
+
+  Widget _buildStatusSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionTitle('Status'),
+        SegmentedButton<String>(
+          segments: const [
+            ButtonSegment(value: 'Active', label: Text('Active')),
+            ButtonSegment(value: 'Inactive', label: Text('Inactive')),
+          ],
+          selected: {_status},
+          onSelectionChanged: (set) => setState(() => _status = set.first),
+          style: ButtonStyle(
+            backgroundColor: WidgetStateProperty.resolveWith((states) {
+              if (states.contains(WidgetState.selected)) {
+                return AppTheme.primary.withValues(alpha: 0.1);
+              }
+              return AppTheme.surface;
+            }),
+            foregroundColor: WidgetStateProperty.resolveWith((states) {
+              if (states.contains(WidgetState.selected)) {
+                return AppTheme.primary;
+              }
+              return AppTheme.textSecondary;
+            }),
+            side: const WidgetStatePropertyAll(BorderSide(color: AppTheme.border)),
+            shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStickyBottomBar() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      decoration: const BoxDecoration(
+        color: AppTheme.surface,
+        border: Border(top: BorderSide(color: AppTheme.border)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Row(
+          children: [
+            Expanded(
+              child: TextButton(
+                onPressed: () => context.pop(),
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  foregroundColor: AppTheme.textSecondary,
                 ),
+                child: const Text('Cancel', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
               ),
-              const SizedBox(height: 6),
-
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _label('SKU'),
-                        TextFormField(
-                          controller: _skuCtrl,
-                          style: const TextStyle(color: AppTheme.textPrimary),
-                          decoration: const InputDecoration(hintText: 'e.g. HW-001'),
-                          validator: (v) => v?.isEmpty == true ? 'Required' : null,
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _label('Barcode'),
-                        TextFormField(
-                          controller: _barcodeCtrl,
-                          style: const TextStyle(color: AppTheme.textPrimary),
-                          decoration: const InputDecoration(hintText: '123456789'),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-
-              _label('Product Name'),
-              TextFormField(
-                controller: _nameCtrl,
-                style: const TextStyle(color: AppTheme.textPrimary),
-                decoration: const InputDecoration(hintText: 'e.g. Hammer'),
-                validator: (v) => v?.isEmpty == true ? 'Required' : null,
-              ),
-              const SizedBox(height: 14),
-
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _label('Category'),
-                        categoriesAsync.when(
-                          loading: () => const LinearProgressIndicator(),
-                          error: (_, __) => const Text('Error', style: TextStyle(color: AppTheme.danger)),
-                          data: (cats) => DropdownButtonFormField<String>(
-                            isExpanded: true,
-                            value: _categoryId,
-                            dropdownColor: AppTheme.elevatedDark,
-                            style: const TextStyle(color: AppTheme.textPrimary),
-                            decoration: const InputDecoration(hintText: 'Category'),
-                            items: cats.map((c) => DropdownMenuItem(value: c.id, child: Text(c.name))).toList(),
-                            onChanged: (v) => setState(() => _categoryId = v),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _label('Brand'),
-                        brandsAsync.when(
-                          loading: () => const LinearProgressIndicator(),
-                          error: (_, __) => const Text('Error', style: TextStyle(color: AppTheme.danger)),
-                          data: (brands) => DropdownButtonFormField<String>(
-                            isExpanded: true,
-                            value: _brandId,
-                            dropdownColor: AppTheme.elevatedDark,
-                            style: const TextStyle(color: AppTheme.textPrimary),
-                            decoration: const InputDecoration(hintText: 'Brand'),
-                            items: brands.map((b) => DropdownMenuItem(value: b.id, child: Text(b.name))).toList(),
-                            onChanged: (v) => setState(() => _brandId = v),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-
-              _label('Base Unit'),
-              unitsAsync.when(
-                loading: () => const LinearProgressIndicator(),
-                error: (_, __) => const Text('Error', style: TextStyle(color: AppTheme.danger)),
-                data: (units) => DropdownButtonFormField<String>(
-                  isExpanded: true,
-                  value: _baseUnitId,
-                  dropdownColor: AppTheme.elevatedDark,
-                  style: const TextStyle(color: AppTheme.textPrimary),
-                  decoration: const InputDecoration(hintText: 'Select Base Unit (e.g. Piece)'),
-                  items: units.map((u) => DropdownMenuItem(value: u.id, child: Text(u.name))).toList(),
-                  onChanged: (v) => setState(() => _baseUnitId = v),
-                ),
-              ),
-              const SizedBox(height: 14),
-
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _label('Base Selling Price'),
-                          TextFormField(
-                            controller: _priceCtrl,
-                            keyboardType: TextInputType.number,
-                            style: const TextStyle(color: AppTheme.textPrimary),
-                            decoration: const InputDecoration(hintText: '0.00'),
-                            validator: (v) => v?.isEmpty == true ? 'Required' : null,
-                          ),
-                        ]),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _label('Cost Price (WAC)'),
-                          TextFormField(
-                            controller: _costCtrl,
-                            keyboardType: TextInputType.number,
-                            style: const TextStyle(color: AppTheme.textPrimary),
-                            decoration: const InputDecoration(hintText: '0.00'),
-                            readOnly: widget.productId != null, // Cost price is updated via GRN usually, but allow initial set
-                          ),
-                        ]),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _label('Base Stock Qty'),
-                          TextFormField(
-                            controller: _stockCtrl,
-                            keyboardType: TextInputType.number,
-                            style: const TextStyle(color: AppTheme.textPrimary),
-                            decoration: const InputDecoration(hintText: '0'),
-                            validator: (v) => v?.isEmpty == true ? 'Required' : null,
-                            readOnly: widget.productId != null, // Admin shouldn't randomly edit stock without adjustment
-                          ),
-                        ]),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _label('Reorder Level (Base)'),
-                          TextFormField(
-                            controller: _reorderCtrl,
-                            keyboardType: TextInputType.number,
-                            style: const TextStyle(color: AppTheme.textPrimary),
-                            decoration: const InputDecoration(hintText: '0'),
-                          ),
-                        ]),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              _label('Status'),
-              DropdownButtonFormField<String>(
-                isExpanded: true,
-                value: _status,
-                dropdownColor: AppTheme.elevatedDark,
-                style: const TextStyle(color: AppTheme.textPrimary),
-                items: ['Active', 'Inactive'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
-                onChanged: (v) => setState(() => _status = v!),
-                decoration: const InputDecoration(),
-              ),
-              const SizedBox(height: 28),
-              ElevatedButton(
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              flex: 2,
+              child: ElevatedButton(
                 onPressed: _isLoading ? null : _submit,
                 style: ElevatedButton.styleFrom(
-                  minimumSize: const Size(double.infinity, 50),
-                  backgroundColor: AppTheme.accent,
+                  backgroundColor: AppTheme.primary,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  elevation: 0,
                 ),
                 child: _isLoading
                     ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                    : Text(widget.productId == null ? 'Create Product' : 'Save Changes'),
+                    : const Text('Save Product', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _imagePlaceholder() => Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.add_photo_alternate_outlined, color: AppTheme.textHint.withValues(alpha: 0.5), size: 32),
-          const SizedBox(height: 6),
-          const Text('Tap to add\nimage', style: TextStyle(color: AppTheme.textHint, fontSize: 11), textAlign: TextAlign.center),
-        ],
+  // ─── Helpers ────────────────────────────────────────────────────────────────
+
+  Widget _sectionTitle(String text) => Padding(
+        padding: const EdgeInsets.only(bottom: 16),
+        child: Text(text, style: const TextStyle(color: AppTheme.textPrimary, fontSize: 18, fontWeight: FontWeight.w700)),
       );
 
   Widget _label(String text) => Padding(
-        padding: const EdgeInsets.only(bottom: 6),
-        child: Text(text, style: const TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
+        padding: const EdgeInsets.only(bottom: 8),
+        child: Text(text, style: const TextStyle(color: AppTheme.textSecondary, fontSize: 13, fontWeight: FontWeight.w500)),
       );
+
+  Widget _helperText(String text) => Padding(
+        padding: const EdgeInsets.only(top: 6, bottom: 8),
+        child: Text(text, style: const TextStyle(color: AppTheme.textHint, fontSize: 12)),
+      );
+
+  Widget _imagePlaceholder() => Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(color: AppTheme.primary.withValues(alpha: 0.1), shape: BoxShape.circle),
+            child: const Icon(Icons.add_photo_alternate_outlined, color: AppTheme.primary, size: 28),
+          ),
+          const SizedBox(height: 12),
+          const Text('Tap to add\nproduct image', style: TextStyle(color: AppTheme.textSecondary, fontSize: 12, fontWeight: FontWeight.w500), textAlign: TextAlign.center),
+        ],
+      );
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String hint,
+    Widget? suffixIcon,
+    TextInputType keyboardType = TextInputType.text,
+    bool readOnly = false,
+    String? Function(String?)? validator,
+  }) {
+    return TextFormField(
+      controller: controller,
+      keyboardType: keyboardType,
+      readOnly: readOnly,
+      validator: validator,
+      style: const TextStyle(color: AppTheme.textPrimary, fontSize: 15),
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: const TextStyle(color: AppTheme.textHint, fontSize: 14),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        fillColor: readOnly ? AppTheme.background : AppTheme.surface,
+        filled: true,
+        suffixIcon: suffixIcon,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: AppTheme.border)),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: AppTheme.border)),
+        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: AppTheme.primary)),
+        errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: AppTheme.danger)),
+      ),
+    );
+  }
+
+  Widget _buildDropdown<T>({
+    required T? value,
+    required String hint,
+    required List<DropdownMenuItem<T>> items,
+    required void Function(T?) onChanged,
+  }) {
+    return DropdownButtonFormField<T>(
+      isExpanded: true,
+      value: value,
+      dropdownColor: AppTheme.surface,
+      style: const TextStyle(color: AppTheme.textPrimary, fontSize: 15),
+      items: items,
+      onChanged: onChanged,
+      icon: const Icon(Icons.keyboard_arrow_down_rounded, color: AppTheme.textSecondary),
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: const TextStyle(color: AppTheme.textHint, fontSize: 14),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        fillColor: AppTheme.surface,
+        filled: true,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: AppTheme.border)),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: AppTheme.border)),
+        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: AppTheme.primary)),
+      ),
+    );
+  }
 }

@@ -3,7 +3,7 @@ class SaleItemModel {
   final String saleId;
   final String productId;
   final String productName;
-  final String productUnitId;
+  final String? productUnitId;
   final int quantity;
   final int baseQuantityMultiplierSnapshot;
   final int quantityBase;
@@ -19,7 +19,7 @@ class SaleItemModel {
     required this.saleId,
     required this.productId,
     required this.productName,
-    required this.productUnitId,
+    this.productUnitId,
     required this.quantity,
     required this.baseQuantityMultiplierSnapshot,
     required this.quantityBase,
@@ -34,7 +34,7 @@ class SaleItemModel {
         saleId: json['sale_id'] as String,
         productId: json['product_id'] as String,
         productName: json['product_name'] as String,
-        productUnitId: json['product_unit_id'] as String,
+        productUnitId: json['product_unit_id'] as String?,
         quantity: json['quantity'] as int,
         baseQuantityMultiplierSnapshot: json['base_quantity_multiplier_snapshot'] as int,
         quantityBase: json['quantity_base'] as int,
@@ -168,7 +168,7 @@ class SaleModel {
 class CartItem {
   final String productId;
   final String productName;
-  final String productUnitId;
+  final String? productUnitId;
   final String unitName;
   final double unitPrice;
   int quantity;
@@ -177,7 +177,7 @@ class CartItem {
   CartItem({
     required this.productId,
     required this.productName,
-    required this.productUnitId,
+    this.productUnitId,
     required this.unitName,
     required this.unitPrice,
     this.quantity = 1,
@@ -198,8 +198,8 @@ class CartItem {
 
 /// Helper model for checkout payments
 class CheckoutPayment {
-  final String paymentMethodId;
-  final String paymentMethodName;
+  String paymentMethodId;
+  String paymentMethodName;
   double amount;
 
   CheckoutPayment({

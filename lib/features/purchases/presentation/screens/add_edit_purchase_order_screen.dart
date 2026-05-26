@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:uuid/uuid.dart';
 import '../../../../app/theme.dart';
+import '../../../../core/extensions/extensions.dart';
 import '../../data/repositories/purchases_repository.dart';
 import '../../../suppliers/data/models/supplier_model.dart';
 import '../../../suppliers/data/repositories/supplier_repository.dart';
@@ -144,7 +145,7 @@ class _AddEditPurchaseOrderState extends ConsumerState<AddEditPurchaseOrderScree
               
               suppliersAsync.when(
                 loading: () => const CircularProgressIndicator(),
-                error: (_, __) => const Text('Error', style: TextStyle(color: AppTheme.danger)),
+                error: (err, stack) => Text('Error: $err', style: const TextStyle(color: AppTheme.danger)),
                 data: (suppliers) => DropdownButtonFormField<String>(
                   value: _supplierId,
                   dropdownColor: AppTheme.elevatedDark,
@@ -176,8 +177,8 @@ class _AddEditPurchaseOrderState extends ConsumerState<AddEditPurchaseOrderScree
                 final cost = i['cost'] as double;
                 return ListTile(
                   title: Text(product.name, style: const TextStyle(color: AppTheme.textPrimary)),
-                  subtitle: Text('Qty: $qty ${unit?.unitName ?? "Base"} | Cost: \$${cost.toStringAsFixed(2)}', style: const TextStyle(color: AppTheme.textSecondary)),
-                  trailing: Text('\$${(qty * cost).toStringAsFixed(2)}', style: const TextStyle(color: AppTheme.accent, fontWeight: FontWeight.bold)),
+                  subtitle: Text('Qty: $qty ${unit?.unitName ?? "Base"} | Cost: ${cost.toCurrency()}', style: const TextStyle(color: AppTheme.textSecondary)),
+                  trailing: Text((qty * cost).toCurrency(), style: const TextStyle(color: AppTheme.accent, fontWeight: FontWeight.bold)),
                 );
               }),
               
@@ -192,7 +193,9 @@ class _AddEditPurchaseOrderState extends ConsumerState<AddEditPurchaseOrderScree
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   const Text('Grand Total: ', style: TextStyle(color: AppTheme.textPrimary, fontSize: 18)),
-                  Text('\$\${_subtotal.toStringAsFixed(2)}', style: const TextStyle(color: AppTheme.accent, fontSize: 22, fontWeight: FontWeight.bold)),
+                    Flexible(
+                      child: Text(_subtotal.toCurrency(), style: const TextStyle(color: AppTheme.accent, fontSize: 22, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis),
+                    ),
                 ],
               ),
               

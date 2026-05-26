@@ -1,0 +1,78 @@
+Created At: 2026-05-26T05:20:58Z
+Completed At: 2026-05-26T05:20:58Z
+File Path: `file:///f:/tic/flutterpos/lib/features/pos/presentation/screens/checkout_screen.dart`
+Total Lines: 455
+Total Bytes: 22186
+Showing lines 350 to 450
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+350:                             onPressed: _addPayment,
+351:                             icon: const Icon(Icons.add, color: AppTheme.primary),
+352:                             label: const Text('Add Split Payment', style: TextStyle(color: AppTheme.primary, fontWeight: FontWeight.w600)),
+353:                           ),
+354:                         ),
+355:                       ],
+356:                     ),
+357:                   ),
+358:                 ),
+359:               ),
+360:             ),
+361:             
+362:             // Bottom Action Area
+363:             Container(
+364:               decoration: BoxDecoration(
+365:                 color: AppTheme.surfaceDark,
+366:                 boxShadow: [
+367:                   BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, -4)),
+368:                 ],
+369:               ),
+370:               child: ConstrainedBox(
+371:                 constraints: const BoxConstraints(maxWidth: 600),
+372:                 child: Padding(
+373:                   padding: const EdgeInsets.all(20),
+374:                   child: Column(
+375:                     mainAxisSize: MainAxisSize.min,
+376:                     children: [
+377:                       // Payment Summary
+378:                       Row(
+379:                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
+380:                         children: [
+381:                           const Text('Total Paid:', style: TextStyle(color: AppTheme.textSecondary, fontSize: 14)),
+382:                         
+<truncated 2068 bytes>
+),
+416:                           const SizedBox(width: 16),
+417:                           Expanded(
+418:                             flex: 2,
+419:                             child: ElevatedButton(
+420:                               onPressed: isCompleteDisabled ? null : _processCheckout,
+421:                               style: ElevatedButton.styleFrom(
+422:                                 backgroundColor: AppTheme.primary,
+423:                                 disabledBackgroundColor: AppTheme.disabled,
+424:                                 padding: const EdgeInsets.symmetric(vertical: 16),
+425:                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+426:                               ),
+427:                               child: _isLoading 
+428:                                 ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+429:                                 : const Text('Complete Sale', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600)),
+430:                             ),
+431:                           ),
+432:                         ],
+433:                       )
+434:                     ],
+435:                   ),
+436:                 ),
+437:               ),
+438:             ),
+439:           ],
+440:         ),
+441:       ),
+442:     );
+443:   }
+444: 
+445:   Widget _buildSummaryRow(String label, String value, {bool isDiscount = false}) {
+446:     return Row(
+447:       mainAxisAlignment: MainAxisAlignment.spaceBetween,
+448:       children: [
+449:         Text(label, style: const TextStyle(color: AppTheme.textSecondary, fontSize: 14)),
+450:         Text(value, style: TextStyle(color: isDiscount ? AppTheme.danger : AppTheme.textPrimary, fontSize: 14, fontWeight: FontWeight.w500)),
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.
